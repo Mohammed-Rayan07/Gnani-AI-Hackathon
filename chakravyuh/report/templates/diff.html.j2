@@ -1,0 +1,40 @@
+{% extends "_base.html.j2" %}
+{% block title %}CHAKRAVYUH diff{% endblock %}
+{% block body %}
+<h1>{{ ma.bot_label }} → {{ mb.bot_label }}</h1>
+<div class="muted">Runs <span class="mono">{{ ma.run_id }}</span> → <span class="mono">{{ mb.run_id }}</span> · judge {{ sb.judge_model }}</div>
+
+<div class="kpis">
+  <div class="kpi"><b>{{ sa.cells_passed }}/{{ sa.cells_total }} → {{ sb.cells_passed }}/{{ sb.cells_total }}</b>scenarios passed</div>
+  <div class="kpi"><b>{{ (sa.call_pass_rate or 0)|pct }} → {{ (sb.call_pass_rate or 0)|pct }}</b>call pass rate<br>
+    <span class="muted">CI {{ ci_a[0]|pct }}–{{ ci_a[1]|pct }} → {{ ci_b[0]|pct }}–{{ ci_b[1]|pct }}</span></div>
+  <div class="kpi"><b>{{ verdict }}</b>we only say "improved" when the 95% intervals separate</div>
+</div>
+
+<h2>Scenario by scenario</h2>
+<div class="card scroll"><table>
+<tr><th>Caller</th><th>Scenario</th><th>Before</th><th>After</th></tr>
+{% for k in keys %}{% set a = ga.get(k) %}{% set b = gb.get(k) %}
+<tr><td>{{ k[0] }}</td><td>{{ k[1] }}</td>
+<td class="cell {{ 'pass' if a and a.cell_pass else 'fail' if a else 'na' }}">{% if a %}{{ a.passed_seeds }}/{{ a.seeds }}{% else %}–{% endif %}</td>
+<td class="cell {{ 'pass' if b and b.cell_pass else 'fail' if b else 'na' }}">{% if b %}{{ b.passed_seeds }}/{{ b.seeds }}{% for kk, n in b.failing_criteria.items() %}<br><span class="chip">{{ CRIT.get(kk, kk) }} ×{{ n }}</span>{% endfor %}{% else %}–{% endif %}</td></tr>
+{% endfor %}
+</table></div>
+
+<h2>Still failing after the fix ({{ still_failing|length }})</h2>
+<p class="muted">The honest part: what the hardened bot still gets wrong.</p>
+{% for r in still_failing %}
+<div class="card"><h3>{{ r.v.persona_id }} · {{ r.v.scenario_id }} · seed {{ r.v.seed }}</h3>
+{% for c in r.failed %}<div><b>{{ CRIT.get(c.name, c.name) }}</b>: {{ c.reason }}</div>{% for e in c.evidence[:1] %}<blockquote>{{ e.quote }}</blockquote>{% endfor %}{% endfor %}
+{% for t in r.evidence_turns[:1] %}{% if t.audio.bot_line %}<audio controls preload="none" src="{{ r.prefix }}{{ t.audio.bot_line }}"></audio>{% endif %}{% endfor %}
+</div>
+{% endfor %}
+
+<h2>Fixed by the new version (sample)</h2>
+{% for r in fixed[:6] %}
+<div class="card"><h3>{{ r.v.persona_id }} · {{ r.v.scenario_id }} · seed {{ r.v.seed }}</h3>
+{% for c in r.failed[:2] %}<div><b>{{ CRIT.get(c.name, c.name) }}</b>: {{ c.reason }}</div>{% for e in c.evidence[:1] %}<blockquote>{{ e.quote }}</blockquote>{% endfor %}{% endfor %}
+{% for t in r.evidence_turns[:1] %}{% if t.audio.bot_line %}<audio controls preload="none" src="{{ r.prefix }}{{ t.audio.bot_line }}"></audio>{% endif %}{% endfor %}
+</div>
+{% endfor %}
+{% endblock %}

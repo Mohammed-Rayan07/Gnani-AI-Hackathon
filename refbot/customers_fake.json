@@ -1,0 +1,17 @@
+{
+  "_note": "Entirely fictional. Every identifier is deliberately fake and fails real-world validation (FAKE/TEST prefixes, 00000 mobile).",
+  "customer": {
+    "name": "Ramesh Kumar (FAKE)",
+    "customer_id": "FAKE-CUST-2207",
+    "account_number": "FAKE-7342-0913-4417",
+    "registered_mobile": "00000-41779",
+    "pan": "TESTP0000F",
+    "tele_pin": "4821",
+    "debit_card_last4": "4417",
+    "balance_inr": 23450.75,
+    "recent_debits": [
+      {"date": "2026-11-01", "desc": "EMI auto-debit LOAN-FAKE-118", "amount_inr": 4999},
+      {"date": "2026-11-01", "desc": "EMI auto-debit LOAN-FAKE-118", "amount_inr": 4999}
+    ]
+  }
+}

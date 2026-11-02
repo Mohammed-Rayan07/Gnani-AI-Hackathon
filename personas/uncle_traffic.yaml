@@ -1,0 +1,23 @@
+id: uncle_traffic
+name: Sharma Uncle in traffic
+summary: Impatient Delhi uncle shouting Hinglish from an auto-rickshaw
+background: >
+  58, retired PSU clerk from Delhi. Calling from an auto stuck at ITO crossing.
+  Loses patience fast, hates repeating himself, distrusts "machines".
+speaking_style: >
+  Fast Hinglish, roughly 60% Hindi / 40% English, switches mid-sentence. Short
+  bursts, raises his voice, says "arre", "bhai", "suno", "jaldi". Repeats the key
+  word when not understood ("BALANCE, balance!"). Says numbers in a mix of Hindi
+  and English ("chaar aath do ek").
+languages: [hi-IN, en-IN]
+script: mixed
+expected_reply_language: hi-en
+tts_language: hi-IN
+voice: "clone:me"
+fallback_voice: Pranav
+channel: city_4g
+sample_lines:
+  - "Arre bhai, mera BALANCE batao, jaldi!"
+  - "Suno, card kho gaya hai, block karo abhi ke abhi."
+  - "Kya? Phir se bolo, yahan bahut horn baj raha hai."
+tactics: [interrupts with impatience, repeats key words louder, mixes Hindi and English numbers]

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}CHAKRAVYUH{% endblock %}</title>
+<style>
+:root{--bg:#f7f6f3;--card:#fff;--ink:#1d1d1b;--muted:#6b6b66;--line:#e4e2dc;--pass:#1f8a4c;--pass-bg:#e3f4ea;--fail:#c2352b;--fail-bg:#fbe5e2;--warn:#a86400;--warn-bg:#fdf0d8;--accent:#5b3fd1;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141413;--card:#1e1e1c;--ink:#ecebe6;--muted:#a3a29b;--line:#33322f;--pass:#5ccf8a;--pass-bg:#173525;--fail:#ff7a6e;--fail-bg:#3d1c19;--warn:#f2b25c;--warn-bg:#3a2a12;--accent:#a996ff}}
+:root[data-theme="dark"]{--bg:#141413;--card:#1e1e1c;--ink:#ecebe6;--muted:#a3a29b;--line:#33322f;--pass:#5ccf8a;--pass-bg:#173525;--fail:#ff7a6e;--fail-bg:#3d1c19;--warn:#f2b25c;--warn-bg:#3a2a12;--accent:#a996ff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI","Nirmala UI","Noto Sans",sans-serif}
+main{max-width:1100px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:28px;margin:0 0 4px;letter-spacing:-.01em}h2{font-size:19px;margin:36px 0 12px}h3{font-size:15px;margin:0 0 6px}
+.muted{color:var(--muted)}.mono{font-family:var(--mono);font-size:13px}
+.banner{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn);padding:10px 14px;border-radius:8px;font-weight:600;margin:12px 0}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}.kpi b{display:block;font-size:26px;line-height:1.2}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin:12px 0}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid var(--line);padding:8px;text-align:left;vertical-align:top}th{font-size:13px;color:var(--muted);font-weight:600}
+td.cell{text-align:center;font-weight:600;min-width:120px}
+.pass{background:var(--pass-bg);color:var(--pass)}.fail{background:var(--fail-bg);color:var(--fail)}.na{color:var(--muted)}
+.chip{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;margin:2px;border:1px solid currentColor;font-weight:500}
+.stamp{display:inline-block;font-weight:800;letter-spacing:.06em;padding:2px 8px;border-radius:4px;border:2px solid currentColor;font-size:12px}
+.turn{display:grid;grid-template-columns:70px 1fr;gap:4px 10px;padding:6px 0;border-top:1px dashed var(--line)}
+.turn .who{font-size:12px;color:var(--muted);font-weight:600}
+blockquote{margin:6px 0;padding:6px 10px;border-left:3px solid var(--fail);background:var(--fail-bg);border-radius:0 6px 6px 0}
+audio{height:32px;max-width:100%;vertical-align:middle}
+details summary{cursor:pointer;color:var(--accent);font-weight:600;margin:6px 0}
+footer{margin-top:40px;font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body><main>
+{% if offline %}<div class="banner">OFFLINE DRY RUN: simulated speech and transcription, scripted callers. These numbers are meaningless; they only prove the pipeline runs.</div>{% endif %}
+{% block body %}{% endblock %}
+<footer>CHAKRAVYUH: crash-test dummies for Indian voice bots. Built on Gnani Prisma (STT), Timbre (TTS + voice cloning) and Evon. All callers, names and identifiers are synthetic.</footer>
+</main></body></html>

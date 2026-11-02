@@ -1,0 +1,71 @@
+{% extends "_base.html.j2" %}
+{% block title %}CHAKRAVYUH scorecard{% endblock %}
+{% block body %}
+<h1>Scorecard: {{ m.bot_label }}</h1>
+<div class="muted">Run <span class="mono">{{ m.run_id }}</span> · mode <b>{{ m.mode }}</b> · adapter {{ m.adapter }}{% if 'logic-only' in m.adapter %} (bot's own voice stack untested){% endif %} · barge-in: N/A (turn-based REST mode)</div>
+<div class="muted">Callers: {{ m.models.persona }} · STT: {{ m.models.stt }} · TTS: {{ m.models.tts }} · Judge: {{ s.judge_model }}</div>
+
+<div class="kpis">
+  <div class="kpi"><b>{{ s.cells_passed }}/{{ s.cells_total }}</b>scenarios passed<br><span class="muted">pass = at least 2 of 3 seeds</span></div>
+  <div class="kpi"><b>{{ s.calls_passed }}/{{ s.calls }}</b>calls passed<br><span class="muted">95% CI {{ s.call_pass_ci95[0]|pct }}–{{ s.call_pass_ci95[1]|pct }}</span></div>
+  <div class="kpi"><b class="{{ 'fail' if leaks else '' }}" style="background:none">{{ leaks }}</b>calls leaked a (fake) identifier</div>
+  <div class="kpi"><b>{{ s.latency_to_first_word_s.p50 if s.latency_to_first_word_s.p50 is not none else '-' }}s</b>p50 to first word<br><span class="muted">p90 {{ s.latency_to_first_word_s.p90 if s.latency_to_first_word_s.p90 is not none else '-' }}s</span></div>
+  <div class="kpi"><b>{{ s.failure_kinds.harness }}</b>harness errors<br><span class="muted">our STT misheard the bot; not counted against it</span></div>
+</div>
+
+<h2>Personas × scenarios</h2>
+<div class="card scroll"><table>
+<tr><th>Caller</th>{% for sc in scenarios %}<th>{{ sc }}</th>{% endfor %}</tr>
+{% for p in personas %}<tr><td><b>{{ p }}</b></td>
+{% for sc in scenarios %}{% set c = grid.get((p, sc)) %}
+  {% if c %}<td class="cell {{ 'pass' if c.cell_pass else 'fail' }}">{{ 'PASS' if c.cell_pass else 'FAIL' }} {{ c.passed_seeds }}/{{ c.seeds }}<br>
+  {% for k, n in c.failing_criteria.items() %}<span class="chip">{{ CRIT.get(k, k) }} ×{{ n }}</span>{% endfor %}</td>
+  {% else %}<td class="cell na">–</td>{% endif %}
+{% endfor %}</tr>{% endfor %}
+</table></div>
+
+<h2>Hear it fail ({{ failures|length }} failing calls)</h2>
+{% for r in failures %}
+<div class="card">
+  <h3><span class="stamp {{ 'fail' if r.v.failure_kind == 'bot' else '' }}">{{ 'FAIL' if r.v.failure_kind == 'bot' else r.v.failure_kind|upper }}</span>
+   {{ r.v.persona_id }} · {{ r.v.scenario_id }} · seed {{ r.v.seed }} · line <span class="mono">{{ r.call.channel }}</span></h3>
+  {% for c in r.failed %}
+    <div><b>{{ CRIT.get(c.name, c.name) }}</b> <span class="chip">{{ c.status }} · {{ c.source }}</span> {{ c.reason }}</div>
+    {% for e in c.evidence[:2] %}<blockquote><span class="muted">turn {{ e.turn }}:</span> {{ e.quote }}{% if e.detail %} <span class="muted">({{ e.detail }})</span>{% endif %}</blockquote>{% endfor %}
+  {% endfor %}
+  {% for t in r.evidence_turns %}
+    <div class="turn"><div class="who">turn {{ t.index }}</div><div>
+      {% if t.audio.caller_line %}caller (as the bot heard it) <audio controls preload="none" src="{{ r.prefix }}{{ t.audio.caller_line }}"></audio><br>{% endif %}
+      {% if t.audio.bot_line %}bot (through the line) <audio controls preload="none" src="{{ r.prefix }}{{ t.audio.bot_line }}"></audio>{% endif %}
+    </div></div>
+  {% endfor %}
+  <details><summary>Full transcript</summary>
+  {% for t in r.call.turns %}
+    <div class="turn"><div class="who">{{ 'greeting' if t.index == 0 else 'turn ' ~ t.index }}</div><div>
+      {% if t.caller_text %}<div><b>Caller:</b> {{ t.caller_text }}</div>{% if t.bot_heard_caller is not none %}<div class="muted">bot heard: {{ t.bot_heard_caller }}</div>{% endif %}{% endif %}
+      <div><b>Bot:</b> {{ t.bot_text_true or t.bot_text_heard }}</div>
+      {% if t.bot_text_true and t.bot_text_heard != t.bot_text_true %}<div class="muted">caller heard: {{ t.bot_text_heard }}</div>{% endif %}
+      <div class="muted mono">first word {{ '%.1f'|format((t.timing.response_latency_s or 0) + (t.timing.leading_silence_s or 0)) }}s · max gap {{ t.timing.max_internal_gap_s or 0 }}s{% if t.channel_meta.upstream %} · upstream loss {{ (t.channel_meta.upstream.measured_loss * 100)|round(1) }}%{% endif %}</div>
+    </div></div>
+  {% endfor %}
+  </details>
+</div>
+{% endfor %}
+
+<h2>Harness noise floor</h2>
+<div class="card scroll">
+<p class="muted">Character error rate between what the bot really said and what Prisma heard through each simulated line. A failure that disappears when judged on the bot's real text is labelled a harness error, not a bot failure.</p>
+<table><tr><th>Line profile</th><th>What it simulates</th><th>CER mean</th><th>median</th><th>bot turns</th></tr>
+{% for name, n in s.harness_noise_cer.items() %}<tr><td class="mono">{{ name }}</td><td>{{ profiles[name].description if name in profiles else '' }}</td><td>{{ n.mean|pct }}</td><td>{{ n.median|pct }}</td><td>{{ n.turns }}</td></tr>{% endfor %}
+</table></div>
+
+<h2>How to read this</h2>
+<div class="card">
+<ul>
+<li>Deterministic checks (PII canaries, language, latency, completion) run first and cannot be overruled by the LLM judge.</li>
+<li>LLM verdicts must quote the transcript verbatim; quotes are machine-checked. Unchecked verdicts show as <b>unverified</b> and are never counted as a pass.</li>
+<li>Language match is approximate: script share + a code-mix lexicon + Prisma's language id.</li>
+<li>The phone line is simulated (band-pass, 8 kHz, mu-law/opus, burst loss, clipping). It is not a real carrier network.</li>
+<li>All identifiers are fake (<span class="mono">FAKE-…</span>, <span class="mono">TESTP0000F</span>, <span class="mono">00000-…</span>).</li>
+</ul></div>
+{% endblock %}

@@ -1,0 +1,106 @@
+"""OpenAI-compatible chat client used for all three LLM roles.
+
+One client covers every Evon tier from the plan:
+  Tier 1  Evon v3.3 on vLLM          base_url=http://<gpu-box>:8000/v1
+          extra body {"chat_template_kwargs": {"enable_thinking": false}}
+  Tier 2  Evon GGUF on llama.cpp/Ollama  base_url=http://localhost:11434/v1
+  Tier 3  any hosted OpenAI-compatible LLM
+Every result carries the model name so reports attribute work honestly.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+
+import httpx
+
+from ..cache import DiskCache, key
+from ..config import LLMRole
+from ._http import request_with_retry
+
+THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+
+
+class LLMError(RuntimeError):
+    pass
+
+
+def extract_json(text: str) -> dict:
+    """Parse the first JSON object in a reply (tolerates reasoning traces and code fences)."""
+    text = THINK_RE.sub("", text).strip()
+    text = re.sub(r"^```(?:json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()
+    try:
+        obj = json.loads(text)
+        if isinstance(obj, dict):
+            return obj
+    except json.JSONDecodeError:
+        pass
+    depth, start = 0, None
+    for i, ch in enumerate(text):
+        if ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}" and depth:
+            depth -= 1
+            if depth == 0 and start is not None:
+                try:
+                    return json.loads(text[start:i + 1])
+                except json.JSONDecodeError:
+                    start = None
+    raise LLMError(f"No JSON object in model output: {text[:300]!r}")
+
+
+class LLMClient:
+    def __init__(self, role: LLMRole, cache: DiskCache | None = None):
+        self.role = role
+        self.cache = cache
+        self._http = httpx.AsyncClient(timeout=httpx.Timeout(180.0, connect=15.0))
+
+    @property
+    def label(self) -> str:
+        return self.role.label
+
+    async def chat(self, messages: list[dict], *, temperature: float = 0.0, max_tokens: int = 800,
+                   json_mode: bool = False, use_cache: bool = True, seed: int | None = None) -> str:
+        if not self.role.configured:
+            raise LLMError(f"{self.role.role.upper()}_LLM_BASE_URL / _MODEL not set")
+        body = {"model": self.role.model, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
+        if json_mode and self.role.json_mode:
+            body["response_format"] = {"type": "json_object"}
+        if seed is not None:
+            body["seed"] = seed
+        body.update(self.role.extra_body)
+        k = key("llm", self.role.base_url, body)
+        cacheable = temperature == 0.0 or seed is not None   # seeded sampling replays from cache
+        if use_cache and self.cache and cacheable:
+            hit = self.cache.get_json(k)
+            if hit is not None:
+                return hit["content"]
+        headers = {"Content-Type": "application/json"}
+        if self.role.api_key:
+            headers["Authorization"] = f"Bearer {self.role.api_key}"
+        r = await request_with_retry(self._http, "POST", f"{self.role.base_url}/chat/completions",
+                                     what=f"LLM[{self.role.role}]", headers=headers, json=body)
+        content = r.json()["choices"][0]["message"].get("content") or ""
+        if use_cache and self.cache and cacheable:
+            self.cache.put_json(k, {"content": content})
+        return content
+
+    async def chat_json(self, messages: list[dict], *, temperature: float = 0.0, max_tokens: int = 800,
+                        retries: int = 2, seed: int | None = None) -> dict:
+        last = None
+        for attempt in range(retries + 1):
+            out = await self.chat(messages, temperature=temperature, max_tokens=max_tokens, json_mode=True,
+                                  use_cache=attempt == 0, seed=seed)
+            try:
+                return extract_json(out)
+            except LLMError as e:
+                last = e
+                messages = messages + [{"role": "assistant", "content": out},
+                                       {"role": "user", "content": "That was not a single valid JSON object. Reply with ONLY the JSON object."}]
+        raise last  # type: ignore[misc]
+
+    async def aclose(self) -> None:
+        await self._http.aclose()

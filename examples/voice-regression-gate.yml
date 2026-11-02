@@ -1,0 +1,35 @@
+# Example: fail CI when your voice bot regresses against Indian callers on a bad line.
+# Copy to .github/workflows/ in YOUR bot's repo. Needs GNANI_API_KEY and LLM secrets.
+name: voice-regression-gate
+on: [pull_request]
+jobs:
+  crash-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg libsndfile1
+      - run: git clone --depth 1 https://github.com/Mohammed-Rayan07/Gnani-AI-Hackathon chakravyuh && cd chakravyuh && uv venv && uv pip install -e .
+      - name: Start your bot (replace with your own command)
+        run: ./scripts/start-bot.sh &   # must serve the audio-http contract on :8100
+      - name: Crash-test it (non-adversarial callers only)
+        env:
+          GNANI_API_KEY: ${{ secrets.GNANI_API_KEY }}
+          PERSONA_LLM_BASE_URL: ${{ secrets.PERSONA_LLM_BASE_URL }}
+          PERSONA_LLM_MODEL: ${{ secrets.PERSONA_LLM_MODEL }}
+          PERSONA_LLM_API_KEY: ${{ secrets.PERSONA_LLM_API_KEY }}
+          JUDGE_LLM_BASE_URL: ${{ secrets.JUDGE_LLM_BASE_URL }}
+          JUDGE_LLM_MODEL: ${{ secrets.JUDGE_LLM_MODEL }}
+          JUDGE_LLM_API_KEY: ${{ secrets.JUDGE_LLM_API_KEY }}
+          CREDIT_CAP: "300"
+        working-directory: chakravyuh
+        run: |
+          source .venv/bin/activate
+          chakravyuh run --bot audio-http:http://localhost:8100 --personas uncle_traffic,tamil_aunty,farmer_2g --seeds 2 --yes
+          RUN=$(ls -d runs/* | tail -1)
+          chakravyuh judge "$RUN"
+          chakravyuh report "$RUN"
+          python -c "import json,sys; s=json.load(open('$RUN/summary.json')); sys.exit(0 if s['cells_passed']==s['cells_total'] else 1)"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: scorecard, path: chakravyuh/runs/}

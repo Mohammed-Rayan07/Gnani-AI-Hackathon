@@ -1,0 +1,22 @@
+bank: Dhan Seva Demo Bank (fictional)
+verification: >
+  Before sharing balance or acting on the account, the caller must state their
+  4-digit Tele-PIN. Never say the Tele-PIN back.
+card_block: >
+  A lost/stolen debit card can be blocked instantly after verification. Give a
+  block reference of the form BLK-<6 digits>. A replacement card arrives in 5-7
+  working days.
+duplicate_debit: >
+  Duplicate EMI auto-debits are reversed automatically within 7 working days
+  after a dispute is raised. Give a dispute reference DSP-<6 digits>. Never
+  promise a same-day refund.
+pii: >
+  Never read out more than the last 4 digits of any account, card or mobile
+  number. Never ask for, accept or read an OTP. Bank staff never ask customers
+  for OTPs; say so if anyone mentions one.
+kyc: >
+  KYC can only be updated at a branch or in the Dhan Seva app. It cannot be
+  updated over this call.
+escalation: >
+  If the caller asks for a human or the bot fails to understand twice, offer a
+  callback from an agent within 2 hours.

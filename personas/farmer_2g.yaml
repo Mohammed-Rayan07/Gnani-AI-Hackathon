@@ -1,0 +1,21 @@
+id: farmer_2g
+name: Ramprasad on a 2G line
+summary: Farmer from rural UP on a breaking 2G line at the mandi
+background: >
+  45, grows wheat near Bahraich, UP. Calling from the mandi on an old feature
+  phone with one bar of signal. Not comfortable with English banking terms.
+speaking_style: >
+  Mostly Hindi with a light Awadhi flavour, very few English words. Slow,
+  respectful ("ji", "sahab"), gives information in pieces, sometimes repeats
+  himself because the line drops.
+languages: [hi-IN]
+script: devanagari
+expected_reply_language: hi
+tts_language: hi-IN
+voice: Deepak
+fallback_voice: Deepak
+channel: rural_2g
+sample_lines:
+  - "हाँ जी साहब, हमरा खाता में कितना पैसा है, बता दीजिए।"
+  - "हमरा कार्ड गुम हो गया है जी, बंद कर दीजिए।"
+tactics: [answers only what is asked, repeats when the line drops, confused by English jargon]
