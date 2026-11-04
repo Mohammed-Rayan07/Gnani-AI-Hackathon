@@ -42,8 +42,9 @@ def config_checks(s: Settings) -> list[Check]:
                          f"{role.model or '-'} @ {role.base_url or '-'} · key {_mask(role.api_key)}",
                          f"Set {p}_LLM_BASE_URL and {p}_LLM_MODEL (and _API_KEY) in .env."))
     same = s.judge_llm.configured and s.judge_llm.model == s.bot_llm.model and s.judge_llm.base_url == s.bot_llm.base_url
-    out.append(Check("judge differs from bot", not same,
-                     "different models" if not same else f"both are {s.bot_llm.model}",
+    both = s.judge_llm.configured and s.bot_llm.configured
+    out.append(Check("judge differs from bot", both and not same,
+                     ("different models" if not same else f"both are {s.bot_llm.model}") if both else "judge or bot not configured",
                      "Use a different model family for JUDGE_LLM (e.g. Groq) than BOT_LLM (e.g. Gemini)."))
     out.append(Check("ffmpeg", bool(shutil.which("ffmpeg")), shutil.which("ffmpeg") or "not on PATH",
                      "Install ffmpeg (Windows: winget install Gyan.FFmpeg) and reopen the terminal."))
@@ -54,7 +55,7 @@ async def gnani_checks(s: Settings, clients) -> list[Check]:
     out: list[Check] = []
     try:
         t0 = time.perf_counter()
-        x, sr = await clients.tts.synthesize(TEST_LINE, voice="Pranav", language="hi-IN")
+        x, sr = await clients.tts.synthesize(TEST_LINE, voice="Deepak", language="hi-IN")
         out.append(Check("Timbre TTS", len(x) > sr * 0.5, f"{len(x) / sr:.1f}s of audio @ {sr} Hz in {time.perf_counter() - t0:.1f}s"))
     except Exception as e:  # noqa: BLE001 - every failure becomes a readable hint
         out.append(Check("Timbre TTS", False, str(e)[:300],
