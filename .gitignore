@@ -8,4 +8,4 @@ runs/
 voices/*.json
 voices/*.wav
 *.sqlite
-reels/
+launch/

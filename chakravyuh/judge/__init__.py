@@ -66,7 +66,7 @@ def pct(xs: list[float], q: float) -> float | None:
     return round(xs[lo] + (xs[hi] - xs[lo]) * (k - lo), 2)
 
 
-def summarize(calls: list[CallRecord], verdicts: list[CallVerdict]) -> dict:
+def summarize(calls: list[CallRecord], verdicts: list[CallVerdict], errored: list[str] | None = None) -> dict:
     by_cell: dict[tuple[str, str], list[CallVerdict]] = defaultdict(list)
     for v in verdicts:
         by_cell[(v.persona_id, v.scenario_id)].append(v)
@@ -125,7 +125,7 @@ def summarize(calls: list[CallRecord], verdicts: list[CallVerdict]) -> dict:
                                    "median": round(statistics.median(noise_ph[ch]), 3) if noise_ph[ch] else None,
                                    "raw_mean": round(statistics.mean(v), 3), "turns": len(v)}
                               for ch, v in sorted(noise.items())},
-        "errors": [c.call_id for c in calls if c.ended_by == "error"],
+        "errors": list(errored or []),
     }
 
 
@@ -137,7 +137,11 @@ async def judge_run(run_dir: Path, personas: dict, scenarios: dict, judge_llm, u
                     tag: str = "") -> dict:
     """tag="" writes verdicts.json/summary.json (the primary judge, used by reports);
     a tag such as "evon" writes verdicts.evon.json/summary.evon.json for a second judge."""
-    calls = load_calls(run_dir)
+    all_calls = load_calls(run_dir)
+    # A call that crashed (API outage, exhausted free-tier quota) never reached the bot properly:
+    # it is reported as an error and re-run with `--resume`, never scored as a bot failure.
+    errored = [c.call_id for c in all_calls if c.ended_by == "error"]
+    calls = [c for c in all_calls if c.ended_by != "error"]
     verdicts, extras = [], {}
     for call in calls:
         v, extra = await judge_call(call, personas[call.persona_id], scenarios[call.scenario_id], judge_llm, use_llm)
@@ -145,7 +149,7 @@ async def judge_run(run_dir: Path, personas: dict, scenarios: dict, judge_llm, u
         extras[call.call_id] = extra
         if progress:
             progress(v)
-    summary = summarize(calls, verdicts)
+    summary = summarize(calls, verdicts, errored)
     summary["judge_model"] = verdicts[0].judge_model if verdicts else ""
     (run_dir / f"verdicts{_suffix(tag)}.json").write_text(
         json.dumps([{**v.model_dump(), **extras[v.call_id]} for v in verdicts], indent=1, ensure_ascii=False), encoding="utf-8")

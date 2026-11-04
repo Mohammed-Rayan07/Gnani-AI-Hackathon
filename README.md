@@ -49,23 +49,31 @@ logged turns ──▶ deterministic checks (PII canaries, language, latency, co
 ```bash
 uv sync --extra dev                         # Python 3.12 (pinned), ffmpeg on PATH
 cp .env.example .env                        # add GNANI_API_KEY + LLM endpoints
+uv run chakravyuh doctor                    # verifies keys, Gnani TTS/STT (incl. 8 kHz) and all LLM roles
 ```
+
+**Everything, end to end, in one resumable command:**
 
 ```bash
-chakravyuh doctor                           # verifies .env, keys, Gnani TTS/STT (incl. 8 kHz) and all 3 LLMs
-chakravyuh smoke                            # Timbre -> every line profile -> Prisma, prints CER per profile
+uv run chakravyuh launch --clone me.wav --i-consent --yes
 ```
+
+`doctor` → clone your voice → run bot v1 and v2 against every caller × scenario × seed → judge → crash reels → the "Hear it fail" site (`site/`) → `docs/RESULTS.md` and the table below → launch copy (`launch/`) → a 60-second demo video (`launch/demo_4x5.mp4`, `demo_16x9.mp4`) → Evon second judge (if `EVON_LLM_*` is set).
+
+Finished calls are skipped. A call that crashed (for example on a free-tier quota) is retried, and it is never scored against the bot. If anything stops it, just re-run the same command.
+
+Individual steps:
 
 ```bash
-chakravyuh run --bot inprocess:v1 --yes     # 4 callers x 3 scenarios x 3 seeds
-chakravyuh run --bot inprocess:v2 --yes
-chakravyuh judge runs/<v1-run>  &&  chakravyuh judge runs/<v2-run>
-chakravyuh report runs/<v2-run>
-chakravyuh diff runs/<v1-run> runs/<v2-run>
-chakravyuh reel runs/<v1-run> <call_id>     # 15 s captioned crash reel (4:5, 9:16 or 16:9)
+uv run chakravyuh smoke                     # Timbre -> every line profile -> Prisma, error rate per profile
+uv run chakravyuh run --bot inprocess:v1 --seeds 1 --yes
+uv run chakravyuh judge runs/<run>  &&  uv run chakravyuh report runs/<run>
+uv run chakravyuh diff runs/<v1-run> runs/<v2-run>
+uv run chakravyuh reel runs/<run> <call_id> --aspect 9:16
+uv run chakravyuh label runs/<run>  &&  uv run chakravyuh kappa runs/<run>   # judge vs you
 ```
 
-No key yet? `CHAKRAVYUH_OFFLINE=1` runs the whole pipeline with simulated speech. The results are stamped as meaningless dry-run output.
+No key yet? `CHAKRAVYUH_OFFLINE=1` runs the whole pipeline with simulated speech. The results are stamped as meaningless dry-run output and never touch this README.
 
 ### Test your own bot
 
@@ -112,15 +120,9 @@ Both prompts are in [`refbot/`](refbot/), so anyone can rerun the diff.
 
 ## Results
 
-_To be filled from `runs/*/summary.json` after the live runs; nothing here is estimated._
-
-| | v1 | v2 |
-|---|---|---|
-| Scenarios passed (≥2/3 seeds) | – | – |
-| Call pass rate (95% CI) | – | – |
-| Calls leaking a fake identifier | – | – |
-| p50 / p90 time to first word | – | – |
-| Judge vs human κ (n=35) | – | – |
+<!-- RESULTS:START -->
+_Filled automatically by `chakravyuh launch` from the judged runs; nothing here is estimated._
+<!-- RESULTS:END -->
 
 ## Models used
 

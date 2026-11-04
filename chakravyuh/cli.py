@@ -23,7 +23,9 @@ from pathlib import Path
 import typer
 
 from .clients import Clients, build_clients, build_ledger
+from .config import ROOT as ROOT_DIR
 from .config import get_settings
+from .orchestrator import estimate_cost
 
 # Windows consoles default to cp1252, which crashes on Devanagari/Tamil transcripts and "→".
 for _stream in (sys.stdout, sys.stderr):
@@ -317,6 +319,174 @@ def site(runs: list[Path], out: Path = typer.Option(Path("site"), help="output f
     from .site import build_site
     p = build_site(runs, out)
     _out(f"Site: {p}  (open index.html locally; push the folder and enable GitHub Pages)")
+
+
+# ----------------------------------------------------------------------------- launch
+
+REPO_URL = "https://github.com/Mohammed-Rayan07/Gnani-AI-Hackathon"
+SITE_URL = "https://mohammed-rayan07.github.io/Gnani-AI-Hackathon/"
+
+
+@app.command()
+def launch(steps: str = typer.Option(",".join(["doctor", "clone", "run", "judge", "reels", "site", "results", "kit", "video", "evon"]),
+                                     help="comma list of steps to run, in order"),
+           personas: str = typer.Option("uncle_traffic,tamil_aunty,farmer_2g,social_engineer,kannada_auto"),
+           seeds: int = typer.Option(3), max_turns: int = typer.Option(6),
+           clone: Path = typer.Option(None, help="5-30 s wav of YOUR voice to clone first (needs --i-consent)"),
+           i_consent: bool = typer.Option(False, "--i-consent"),
+           yes: bool = typer.Option(False, "--yes", help="skip the cost confirmation"),
+           site_dir: Path = typer.Option(None, help="default: ./site"), kit_dir: Path = typer.Option(None, help="default: ./launch"),
+           publish: bool = typer.Option(False, "--publish", help="git add/commit/push site/, docs/RESULTS.md and README.md at the end")):
+    """The whole live pipeline, resumable: re-run the same command after a crash or quota stop."""
+    from . import doctor as d
+    from . import launch as L
+    from .judge import judge_agreement, judge_run
+
+    s = get_settings()
+    want = [x.strip() for x in steps.split(",") if x.strip()]
+    bad = [x for x in want if x not in L.ALL_STEPS]
+    if bad:
+        raise typer.BadParameter(f"unknown steps {bad}; valid: {L.ALL_STEPS}")
+    cfg = L.LaunchConfig(personas=[x.strip() for x in personas.split(",") if x.strip()], seeds=seeds,
+                         max_turns=max_turns, clone_wav=clone, consent=i_consent, steps=want, yes=yes)
+    if site_dir:
+        cfg.site_dir = site_dir
+    if kit_dir:
+        cfg.kit_dir = kit_dir
+    v1_dir, v2_dir = cfg.run_dir(s, "v1"), cfg.run_dir(s, "v2")
+    c = build_clients(s)
+    log = _out
+
+    async def go():
+        if "doctor" in want and not s.offline:
+            log("== doctor")
+            checks = d.config_checks(s) + await d.network_checks(s) + await d.gnani_checks(s, c) + await d.llm_checks(s, c)
+            failed = [ch for ch in checks if not ch.ok]
+            for ch in failed:
+                log(f"  FAIL {ch.name}: {ch.detail}\n       fix: {ch.fix}")
+            if failed:
+                raise typer.Exit(code=_abort("doctor failed; fix the above and re-run (finished steps are kept)"))
+            log(f"  {len(checks)}/{len(checks)} OK")
+        if "clone" in want and cfg.clone_wav:
+            log("== clone")
+            if (s.voices_dir / "me.json").exists():
+                log("  voices/me.json exists, skipping")
+            elif not cfg.consent:
+                raise typer.Exit(code=_abort("--clone needs --i-consent (your own voice only; see docs/CONSENT.md)"))
+            else:
+                log(f"  {await c.tts.create_embedding(cfg.clone_wav, 'me')}")
+        if "run" in want:
+            log("== run")
+            specs = L.build_specs(cfg)
+            est = estimate_cost(c, specs, True) * 2
+            log(f"  {len(specs)} calls per version x 2 = {2 * len(specs)} calls; estimated <= {est:.0f} credits "
+                f"(remaining {c.ledger.remaining():.0f}; finished calls are skipped)")
+            if not s.offline and est > s.confirm_above and not cfg.yes:
+                raise typer.Exit(code=_abort(f"Re-run with --yes to spend up to {est:.0f} credits."))
+            for version, rd in (("v1", v1_dir), ("v2", v2_dir)):
+                for attempt in range(cfg.retries + 1):
+                    left = await L.run_version(c, version, rd, specs, log)
+                    if not left:
+                        break
+                    log(f"  {version}: {len(left)} calls crashed; retry {attempt + 1}/{cfg.retries} in 60 s")
+                    if attempt < cfg.retries:
+                        await asyncio.sleep(0 if s.offline else 60)
+                if left:
+                    log(f"  {version}: {len(left)} calls still crashing (quota?). They are excluded from scoring; "
+                        "re-run `chakravyuh launch --steps run,judge,reels,site,results,kit,video` later to finish them.")
+            log("  " + _usage_line(c))
+        if "judge" in want:
+            log("== judge")
+            use_llm = not s.offline and s.judge_llm.configured
+            if use_llm:
+                _check_judge_differs(c, False)
+            for rd in (v1_dir, v2_dir):
+                summ = await judge_run(rd, models_personas(), models_scenarios(), c.judge_llm, use_llm)
+                log(f"  {rd.name}: {summ['cells_passed']}/{summ['cells_total']} scenarios, "
+                    f"{summ['calls_passed']}/{summ['calls']} calls passed, errors {len(summ['errors'])}")
+            from .report import write_diff, write_scorecard
+            for rd in (v1_dir, v2_dir):
+                write_scorecard(rd)
+            log(f"  diff: {write_diff(v1_dir, v2_dir)}")
+        picks, reels = {}, {}
+        if any(x in want for x in ("reels", "video", "kit")):
+            picks = L.pick_reels(v1_dir, v2_dir)
+        if "reels" in want:
+            log("== reels")
+            reels = L.render_reels(picks, log)
+            L.copy_reels_to_kit(reels, cfg.kit_dir)
+        else:
+            from .reel import SIZES as _RS
+            for name, (rd, cid) in picks.items():
+                reels[name] = {a: rd / "reels" / f"{cid}_{a.replace(':', 'x')}.mp4" for a in _RS
+                               if (rd / "reels" / f"{cid}_{a.replace(':', 'x')}.mp4").exists()}
+        if "site" in want:
+            log("== site")
+            from .site import build_site
+            caller_runs = sorted(p for p in s.runs_dir.glob("caller-*") if (p / "summary.json").exists())
+            log(f"  {build_site([v1_dir, v2_dir, *caller_runs], cfg.site_dir)}")
+        if "evon" in want and s.evon_llm.configured and not s.offline:
+            log("== evon (second judge; slow on a laptop, safe to Ctrl+C and resume later)")
+            from .clients.llm import LLMClient
+            from .cache import DiskCache
+            evon = LLMClient(s.evon_llm, DiskCache(s.cache_dir, "llm"))
+            for rd in (v1_dir, v2_dir):
+                await judge_run(rd, models_personas(), models_scenarios(), evon, True, tag="evon")
+                a = judge_agreement(rd, "", "evon")
+                log(f"  {rd.name}: agreement {a['agreement']}, kappa {a['kappa']} over {a['calls']} calls")
+            await evon.aclose()
+        elif "evon" in want:
+            log("== evon: EVON_LLM_* not set, skipped (docs/EVON_LOCAL.md)")
+        f = None
+        if any(x in want for x in ("results", "kit", "video", "evon")):
+            f = L.facts(v1_dir, v2_dir)
+        if "results" in want or "evon" in want:
+            log("== results")
+            if s.offline:   # never let dry-run numbers near the public docs
+                cfg.kit_dir.mkdir(parents=True, exist_ok=True)
+                log(f"  {L.write_results(f, cfg.kit_dir / 'RESULTS.offline.md')} (offline: README untouched)")
+            else:
+                log(f"  {L.write_results(f, ROOT_DIR / 'docs' / 'RESULTS.md')}")
+                log(f"  README results table updated: {L.update_readme(f)}")
+        if "kit" in want or "evon" in want:
+            log("== kit")
+            for p in L.write_kit(f, cfg.kit_dir, REPO_URL, SITE_URL):
+                log(f"  {p}")
+        if "video" in want:
+            log("== video")
+            from .video import build_demo
+            await build_demo(f, picks, reels, c.tts, s.voices_dir, cfg.kit_dir, v1_dir, repo_url=REPO_URL.replace("https://", ""), log=log)
+        await _close(c)
+
+    asyncio.run(go())
+    _out(f"\nDone. Launch kit: {cfg.kit_dir}  ·  site: {cfg.site_dir}  ·  results: docs/RESULTS.md\n"
+         f"Credits spent so far: {c.ledger.summary()['spent']}")
+    if publish:
+        if s.offline:
+            raise typer.Exit(code=_abort("--publish refused in offline mode (dry-run numbers are never published)"))
+        import subprocess
+        paths = [p for p in ("site", "docs/RESULTS.md", "README.md") if (ROOT_DIR / p).exists()]
+        subprocess.run(["git", "add", "--", *paths], cwd=ROOT_DIR, check=True)
+        staged = subprocess.run(["git", "diff", "--cached", "--name-only"], cwd=ROOT_DIR, capture_output=True, text=True).stdout.split()
+        leaked = [p for p in staged if p.endswith(".env") or p.startswith(("runs/", "voices/", ".cache/"))]
+        if leaked:
+            raise typer.Exit(code=_abort(f"refusing to publish private files: {leaked}"))
+        if staged:
+            subprocess.run(["git", "commit", "-m", "Publish live results, site and README numbers"], cwd=ROOT_DIR, check=True)
+            subprocess.run(["git", "push"], cwd=ROOT_DIR, check=True)
+            _out(f"Published {len(staged)} files.")
+        else:
+            _out("Nothing new to publish.")
+
+
+def models_personas():
+    from . import models
+    return models.personas()
+
+
+def models_scenarios():
+    from . import models
+    return models.scenarios()
 
 
 @app.command()
