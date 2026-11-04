@@ -29,14 +29,21 @@ log = logging.getLogger("chakravyuh.timbre")
 
 
 def _find_embedding(obj):
-    """Return the first list that looks like an embedding (nested shape preserved)."""
+    """Return the speaker embedding from a clone response.
+
+    The live API (docs.gnani.ai/api/VC/voice-clone-embeddings) returns
+    data.voice_clone_embedding = {"embedding": "<string>", "shape": [1, 768], "dtype": "torch.bfloat16"},
+    and vc-inference wants that whole object back as `speaker_embedding`. A bare
+    numeric list is still accepted for older/other shapes."""
+    if isinstance(obj, dict) and isinstance(obj.get("embedding"), str) and obj["embedding"]:
+        return {k: obj[k] for k in ("embedding", "shape", "dtype") if k in obj}
     if isinstance(obj, list) and obj and (
         all(isinstance(v, (int, float)) for v in obj)
         or all(isinstance(v, list) and v and all(isinstance(u, (int, float)) for u in v) for v in obj)
     ):
         return obj
     if isinstance(obj, dict):
-        for k in ("speaker_embedding", "embedding", "embeddings", "data"):
+        for k in ("voice_clone_embedding", "speaker_embedding", "embedding", "embeddings", "data"):
             if k in obj:
                 found = _find_embedding(obj[k])
                 if found is not None:
@@ -72,7 +79,7 @@ class TimbreClient:
     def label(self, voice: str) -> str:
         return f"{self.s.tts_vc_model} (cloned: {voice[6:]})" if voice.startswith("clone:") else f"{self.s.tts_model}/{voice}"
 
-    def _embedding(self, name: str) -> list:
+    def _embedding(self, name: str) -> dict | list:
         if name not in self._embeddings:
             p = self.s.voices_dir / f"{name}.json"
             if not p.exists():
@@ -93,7 +100,8 @@ class TimbreClient:
                        "audio_config": audio_config}
         else:
             payload = {"text": text, "voice": voice, "model": self.s.tts_model, "audio_config": audio_config}
-        if language and (voice.startswith("clone:") or self.s.tts_model == "timbre-v2.5"):
+        # `language` is required for timbre-v2.5/v3.0; the vc-inference docs list no language field.
+        if language and not voice.startswith("clone:"):
             payload["language"] = language
         return payload
 
