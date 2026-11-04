@@ -25,6 +25,11 @@ import typer
 from .clients import Clients, build_clients, build_ledger
 from .config import get_settings
 
+# Windows consoles default to cp1252, which crashes on Devanagari/Tamil transcripts and "→".
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure") and (getattr(_stream, "encoding", "") or "").lower().replace("-", "") != "utf8":
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+
 app = typer.Typer(add_completion=False, no_args_is_help=True, help=__doc__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 for noisy in ("httpx", "httpcore"):
@@ -99,7 +104,7 @@ def doctor(offline_ok: bool = typer.Option(False, help="only check config, make 
 
 @app.command()
 def smoke(text: str = typer.Option("मेरा balance बताइए, और card block करना है, ending चार चार एक सात।", help="line to synthesize"),
-          voice: str = typer.Option("Pranav"), language: str = typer.Option("hi-IN")):
+          voice: str = typer.Option("Deepak"), language: str = typer.Option("hi-IN")):
     """Day-1 check: one Timbre line through every channel profile, transcribed by Prisma."""
     from . import audio, channel
     from .judge.stats import cer
