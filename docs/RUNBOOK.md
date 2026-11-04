@@ -1,5 +1,19 @@
 # Runbook
 
+## Launch day: one command
+```
+uv run chakravyuh launch --clone me.wav --i-consent --yes --publish
+```
+It runs doctor, clones your voice, runs v1 and v2 over 90 calls, then judges and produces the reels, the site, `docs/RESULTS.md`, the README table, the `launch/` post copy, `launch/demo_4x5.mp4` and `demo_16x9.mp4`, and the Evon second judge (if configured). With `--publish` it then git-pushes the site and results.
+
+If it stops (Groq daily quota, Wi-Fi), run the same command again: finished calls are skipped.
+
+To redo only the outputs after hand-labelling (`chakravyuh label runs/launch-v1` then `chakravyuh kappa runs/launch-v1`):
+```
+uv run chakravyuh launch --steps results,kit,video --publish
+```
+
+
 Run every command from the repo root with `uv run chakravyuh ...`. You can also activate `.venv` first and drop the `uv run`.
 
 ## Once
