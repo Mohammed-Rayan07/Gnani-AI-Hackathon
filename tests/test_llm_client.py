@@ -46,6 +46,19 @@ def test_retries_with_bigger_budget_when_thinking_eats_tokens():
     assert budgets == [200, 800, 3200][: len(budgets)] and budgets[-1] >= 1000
 
 
+def test_retries_when_thinking_truncates_visible_reply():
+    """Live Gemini 3.5 Flash returned '{"ok": true, "word' with finish_reason=length."""
+    budgets = []
+
+    def handler(req):
+        body = json.loads(req.content)
+        budgets.append(body["max_tokens"])
+        return _ok('{"ok": true, "word', "length") if body["max_tokens"] < 1000 else _ok('{"ok": true}')
+
+    assert asyncio.run(_client(handler).chat_json([{"role": "user", "content": "x"}], max_tokens=200)) == {"ok": True}
+    assert budgets[0] == 200 and budgets[-1] >= 1000
+
+
 def test_waits_out_rate_limit():
     calls = []
 

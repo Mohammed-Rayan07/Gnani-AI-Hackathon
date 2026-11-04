@@ -117,7 +117,9 @@ class LLMClient:
                 raise
             choice = r.json()["choices"][0]
             content = choice["message"].get("content") or ""
-            if not content.strip() and choice.get("finish_reason") == "length" and body.get("max_tokens", 0) < 6000:
+            if choice.get("finish_reason") == "length" and body.get("max_tokens", 0) < 6000:
+                # Thinking models (e.g. Gemini 3.x Flash) spend the budget on hidden reasoning and
+                # return empty OR cut-off content; a truncated reply must never reach the caller.
                 body["max_tokens"] = body.get("max_tokens", 800) * 4
                 continue
             return content
