@@ -9,7 +9,7 @@ Read this first, every session. It is the full technical context handed over fro
 - **Deadline:** **10 Nov 2026, 11:59 PM IST**.
 - **Selection:** by verified LinkedIn/X engagement on nominated posts (needs #GreatIndianAIInternshipChallenge #GnaniAI and a Gnani tag), then individual interviews.
 - **Awards:** max **one** award per entrant. The target is **Noise Canceller** (noisy telephonic audio); backups are Solo Ninja and Demo Day Drop.
-- **Entrant:** solo, NIT Karnataka (Surathkal); hometown Chennai.
+- **Entrant:** solo.
 
 ## 2. Hard rules (never break)
 1. **Never print, log, paste or commit secrets.** `.env` holds `GNANI_API_KEY`, Groq/Gemini keys (the user named them `Groq_API_KEY`, `Gemini_API_KEY` and copied them into the role vars). Show `.env` by variable names only.
@@ -30,10 +30,11 @@ Read this first, every session. It is the full technical context handed over fro
 - **ffmpeg** must be on PATH (opus codec, reels, video, libass captions). Use the Windows reel font `CHAKRAVYUH_REEL_FONT="Nirmala UI"` (covers Devanagari, Tamil and Kannada).
 - The **cloud session** could not reach `api.vachana.ai`, Groq or huggingface (network policy), so live calls only run on the laptop.
 - Windows consoles are cp1252; the CLI forces UTF-8 output (fixed in `3d6c16d`).
+- **The repo is inside OneDrive.** A full launch writes about 2,000 WAVs plus cache files, and OneDrive sync can lock files mid-write. **Pause OneDrive syncing during `launch`** (tray icon → Pause syncing → 24 hours). If you see `PermissionError`/`WinError 32`, that's the cause: pause syncing and re-run (the run resumes).
 
 ## 4. Commands
 ```
-uv run pytest -q                                   # 61 tests, ~2.5 min (test_launch runs a full offline launch)
+uv run pytest -q                                   # 63 tests, ~3 min (test_launch: offline launch; test_live_paths: real clients vs mock APIs)
 uv run chakravyuh doctor                           # .env, keys (masked), network, Timbre, Prisma 16k + 8k line, 3 LLMs
 uv run chakravyuh smoke                            # one line through every channel profile, raw + phonetic CER
 uv run chakravyuh launch --clone me.wav --i-consent --yes --publish    # EVERYTHING, resumable
@@ -181,13 +182,18 @@ runs/caller-*                       comment-loop runs (included in the site)
 - `55d744e`: token usage, `site`, Pages workflow.
 - `26f1b0a`: `launch`, `video.py`, crashed calls excluded from scoring; strategy docs removed from the public tree (still in history at `571b57d`).
 - `f4e0257`: judge outage → review; README now says exactly which model does what.
+- `af63c39`: **live-path rehearsal.** `tests/mock_apis.py` is a local stand-in for Gnani and an LLM server that validates every request against the verified API shapes. The real clients, voice cloning, `launch` (doctor → video) and the comment loop ran through it with **zero contract violations** over about 600 requests. That kept the live paths covered in CI and fixed:
+  - `--publish` now pushes with `git push -u origin HEAD`;
+  - the launch kit only claims what ran (caller list from personas, clone line only if `voices/me.json` exists, Gnani tag as a placeholder);
+  - the demo hook is the PII-leak clip;
+  - doctor accepts env-var configuration.
 
 ## 12. Known issues / limits (docs/LIMITATIONS.md)
 - The line is simulated: no real AMR/GSM, echo or carrier AGC. Turn-based, so barge-in is N/A.
 - The persona LLM ignores the mixed-script rule about half the time. Timbre copes, but caller-side codemix CER is noisy.
 - The script test and number words cover Hindi best; Tamil and Kannada coverage is thinner. Romanised-Tamil lexicon is small.
 - On `rural_2g`, Prisma may switch language or paraphrase. Expect high harness noise there.
-- **Not yet done live:**
+- **Not yet done live** (only rehearsed against the mock; contract-level confidence, not proof):
   - the full 90-call launch;
   - voice clone;
   - Evon;
@@ -197,7 +203,7 @@ runs/caller-*                       comment-loop runs (included in the site)
 
 ## 13. What's next (status as of Nov 5)
 1. The user records `rec.m4a` (script in STUDY_GUIDE Part 9), then runs `ffmpeg -i rec.m4a -ac 1 -ar 16000 me.wav` and fills in `docs/CONSENT.md`.
-2. `uv run chakravyuh launch --clone me.wav --i-consent --yes --publish`. Watch for doctor failures, clone errors (first live test of the clone format) and Groq daily caps (re-run to resume).
+2. **Pause OneDrive**, then `uv run chakravyuh launch --clone me.wav --i-consent --yes --publish`. Watch for doctor failures, clone errors (first live test of the clone format) and Groq daily caps (re-run to resume). If the Groq daily cap is too tight for 90 calls, shrink with `--seeds 2` (60 calls) or drop `kannada_auto` from `--personas`; the post copy adapts automatically.
 3. Review the outputs (demo video, reels with Indic glyphs, `site/index.html`, `docs/RESULTS.md`, `launch/LINKEDIN_POST.md`). Fix anything wrong **before** posting.
 4. Make the repo public, merge to `main`, then Settings → Pages → GitHub Actions and run the pages workflow.
 5. Post the LinkedIn launch (native 4:5 video, both hashtags, Gnani tag, first comment with links) around 8:30 AM IST, then the X thread at 9:00 with the 16:9 video. Run the comment loop with `chakravyuh caller`.
