@@ -84,3 +84,39 @@ def test_kappa():
 def test_cer():
     assert cer("abc", "abc") == 0
     assert cer("abcd", "abxd") == 0.25
+
+
+def test_repetition_check_flags_loops_only():
+    loop = _call(["KYC sirf branch ya app se hoga."] * 4)
+    assert deterministic.check_repetition(loop, "true").status == "fail"
+    varied = _call(["KYC sirf branch ya app se hoga.", "OTP kabhi mat batayiye.", "Agent callback 2 ghante mein."])
+    assert deterministic.check_repetition(varied, "true").status == "pass"
+
+
+def test_turn_cap_is_not_blamed_on_bot():
+    c = _call(["ok"])
+    c.ended_by = "turn_cap"
+    assert deterministic.check_resolution(c).status == "na"
+    c.ended_by = "error"
+    assert deterministic.check_resolution(c).status == "fail"
+
+
+def test_phonetic_cer_ignores_script_and_number_words():
+    from chakravyuh.judge.stats import phonetic_cer
+    assert phonetic_cer("मेरा balance बताइए", "मेरा बैलेंस बताइये") < 0.15
+    assert phonetic_cer("account FAKE-7342-0913-4417", "account fake seven three four two zero nine one three four four one seven") == 0
+    assert phonetic_cer("मेरा balance बताइए", "Your balance is high. The card blocked.") > 0.8
+    # a real digit mishearing still counts
+    assert phonetic_cer("PIN चार आठ दो एक", "PIN चार आठ दो") > 0
+
+
+def test_judge_agreement(tmp_path):
+    import json as _j
+    from chakravyuh.judge import judge_agreement
+    mk = lambda passed, st: [{"call_id": f"c{i}", "passed": p, "judge_model": "m",
+                               "criteria": [{"name": "task_success", "status": s, "source": "llm"}]}
+                              for i, (p, s) in enumerate(zip(passed, st))]
+    (tmp_path / "verdicts.json").write_text(_j.dumps(mk([True, False, True, False], ["pass", "fail", "pass", "fail"])))
+    (tmp_path / "verdicts.evon.json").write_text(_j.dumps(mk([True, False, False, False], ["pass", "fail", "fail", "fail"])))
+    rep = judge_agreement(tmp_path)
+    assert rep["calls"] == 4 and rep["agreement"] == 0.75 and rep["disagreements"] == ["c2"]

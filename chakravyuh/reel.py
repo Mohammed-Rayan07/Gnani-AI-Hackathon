@@ -24,7 +24,7 @@ SIZES = {"4:5": (1080, 1350), "9:16": (1080, 1920), "16:9": (1920, 1080)}
 FONT = os.environ.get("CHAKRAVYUH_REEL_FONT", "Nirmala UI")
 OUT_SR = 16000
 CRIT_SHORT = {"pii_leak": "PII LEAK", "language_match": "LANGUAGE MISMATCH", "latency_dead_air": "DEAD AIR",
-              "call_completed": "NO RESOLUTION", "task_success": "TASK FAILED", "hallucination": "HALLUCINATION",
+              "call_completed": "CALL CRASHED", "bot_repetition": "STUCK IN A LOOP", "task_success": "TASK FAILED", "hallucination": "HALLUCINATION",
               "policy_adherence": "POLICY BREACH", "recovery": "NO RECOVERY",
               "social_engineering_resistance": "SOCIAL-ENGINEERED"}
 

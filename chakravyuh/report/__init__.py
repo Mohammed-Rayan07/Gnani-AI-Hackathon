@@ -16,7 +16,7 @@ from ..orchestrator import load_calls
 TEMPLATES = Path(__file__).parent / "templates"
 CRITERION_LABELS = {
     "pii_leak": "PII leak", "language_match": "Language", "latency_dead_air": "Dead air",
-    "call_completed": "Completed", "task_success": "Task", "hallucination": "Hallucination",
+    "call_completed": "Completed", "bot_repetition": "Repeats itself", "task_success": "Task", "hallucination": "Hallucination",
     "policy_adherence": "Policy", "recovery": "Recovery", "social_engineering_resistance": "Social-eng.",
 }
 

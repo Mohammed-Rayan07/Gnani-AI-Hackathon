@@ -107,7 +107,7 @@ def smoke(text: str = typer.Option("मेरा balance बताइए, और
           voice: str = typer.Option("Deepak"), language: str = typer.Option("hi-IN")):
     """Day-1 check: one Timbre line through every channel profile, transcribed by Prisma."""
     from . import audio, channel
-    from .judge.stats import cer
+    from .judge.stats import cer, phonetic_cer
 
     s = get_settings()
     c = build_clients(s)
@@ -119,12 +119,12 @@ def smoke(text: str = typer.Option("मेरा balance बताइए, और
         audio.write_wav(out_dir / "clean.wav", x, sr)
         _out(f"[{s.mode_label}] TTS {voice}/{language}: {len(x) / sr:.1f}s @ {sr} Hz -> {out_dir / 'clean.wav'}")
         clean = await c.stt.transcribe(x, sr, reference_text=text)
-        _out(f"  clean 16k   CER {cer(text, clean.text) or 0:.2f} lang={clean.detected_language}  {clean.text}")
+        _out(f"  clean 16k   CER {cer(text, clean.text) or 0:.2f} phonetic {phonetic_cer(text, clean.text) or 0:.2f} lang={clean.detected_language}  {clean.text}")
         for name in channel.PROFILES:
             r = channel.degrade(x, sr, name, seed=1)
             audio.write_wav(out_dir / f"{name}.wav", r.audio, r.sr)
             res = await c.stt.transcribe(r.audio, r.sr, reference_text=text)
-            _out(f"  {name:<11} CER {cer(text, res.text) or 0:.2f} lang={res.detected_language} loss={r.meta['measured_loss']:.0%} codec={r.meta['codec']}  {res.text}")
+            _out(f"  {name:<11} CER {cer(text, res.text) or 0:.2f} phonetic {phonetic_cer(text, res.text) or 0:.2f} lang={res.detected_language} loss={r.meta['measured_loss']:.0%} codec={r.meta['codec']}  {res.text}")
         _out(f"Credits used so far: {c.ledger.summary()}")
         _out("Listen to the wavs, then put real per-unit rates from the usage page into .env (RATE_*).")
         await _close(c)
@@ -155,6 +155,7 @@ def run(bot: str = typer.Option("inprocess:v1", help="inprocess:v1|v2, audio-htt
         personas: str = typer.Option("uncle_traffic,tamil_aunty,farmer_2g,social_engineer", help="comma list or 'all'"),
         scenarios: str = typer.Option("all", help="comma list or 'all'"),
         seeds: int = typer.Option(3), channel_override: str = typer.Option("", "--channel", help="force one profile for every persona"),
+        max_turns: int = typer.Option(0, help="override every scenario's max caller turns (0 = scenario default)"),
         concurrency: int = typer.Option(0, help="0 = CONCURRENCY from .env"),
         yes: bool = typer.Option(False, "--yes", help="skip the cost confirmation"),
         tag: str = typer.Option("", help="label stored in the manifest")):
@@ -183,7 +184,8 @@ def run(bot: str = typer.Option("inprocess:v1", help="inprocess:v1|v2, audio-htt
             continue
         for sid in sids:
             for seed in range(1, seeds + 1):
-                specs.append(CallSpec(p, all_s[sid], seed, channel_override or p.channel))
+                sc = all_s[sid].model_copy(update={"max_turns": max_turns}) if max_turns else all_s[sid]
+                specs.append(CallSpec(p, sc, seed, channel_override or p.channel))
     est = estimate_cost(c, specs, ours)
     _out(f"[{s.mode_label}] {len(specs)} calls against {bot_obj.label}. Estimated cost <= {est:.0f} credits "
          f"(remaining budget {c.ledger.remaining():.0f}).")
@@ -193,7 +195,7 @@ def run(bot: str = typer.Option("inprocess:v1", help="inprocess:v1|v2, audio-htt
     run_dir = s.runs_dir / run_id
     write_manifest(run_dir, run_id=run_id, bot=bot, bot_label=bot_obj.label, bot_version=bot_obj.version,
                    adapter=bot_obj.name, mode=s.mode_label, personas=pids, scenarios=sids, seeds=seeds,
-                   channel_override=channel_override, tag=tag, estimate=est,
+                   channel_override=channel_override, max_turns=max_turns or "scenario default", tag=tag, estimate=est,
                    models={"persona": c.persona_llm.label, "bot": c.bot_llm.label, "judge": c.judge_llm.label,
                            "stt": getattr(c.stt, "label", "?"), "tts": "offline-tts" if s.offline else s.tts_model})
     orch = Orchestrator(c, bot_obj, run_dir, run_id)
@@ -221,18 +223,29 @@ def _abort(msg: str) -> int:
 
 @app.command()
 def judge(run_dir: Path, no_llm: bool = typer.Option(False, "--no-llm", help="deterministic checks only"),
-          allow_same_judge: bool = typer.Option(False)):
+          allow_same_judge: bool = typer.Option(False),
+          use: str = typer.Option("judge", "--judge", help="'judge' (JUDGE_LLM_*, primary) or 'evon' (EVON_LLM_*, second judge)")):
     """Judge a run (deterministic checks + LLM rubric with verified quotes)."""
     from . import models
+    from .clients.llm import LLMClient
     from .judge import judge_run
 
     s = get_settings()
     c = build_clients(s)
     use_llm = not no_llm and not s.offline
+    tag = ""
+    if use == "evon":
+        if not s.evon_llm.configured:
+            raise typer.BadParameter("EVON_LLM_BASE_URL / EVON_LLM_MODEL not set (see docs/EVON_LOCAL.md)")
+        c.judge_llm = LLMClient(s.evon_llm)
+        tag = "evon"
+    elif use != "judge":
+        raise typer.BadParameter("--judge must be 'judge' or 'evon'")
     if use_llm:
-        if not s.judge_llm.configured:
+        if use == "judge" and not s.judge_llm.configured:
             raise typer.BadParameter("JUDGE_LLM_* not configured; use --no-llm for deterministic checks only")
-        _check_judge_differs(c, allow_same_judge)
+        if use == "judge":
+            _check_judge_differs(c, allow_same_judge)
 
     def tick(v):
         mark = "PASS" if v.passed else f"FAIL[{v.failure_kind}]"
@@ -240,7 +253,7 @@ def judge(run_dir: Path, no_llm: bool = typer.Option(False, "--no-llm", help="de
         _out(f"  {mark:<14} {v.call_id}  {bad}")
 
     async def go():
-        summ = await judge_run(run_dir, models.personas(), models.scenarios(), c.judge_llm, use_llm, tick)
+        summ = await judge_run(run_dir, models.personas(), models.scenarios(), c.judge_llm, use_llm, tick, tag=tag)
         await _close(c)
         return summ
 
@@ -250,6 +263,13 @@ def judge(run_dir: Path, no_llm: bool = typer.Option(False, "--no-llm", help="de
          f"{summ['cells_passed']}/{summ['cells_total']} scenarios passed (>= 2/3 seeds). Judge: {summ['judge_model']}")
     _out(f"Failure kinds: {summ['failure_kinds']}   Harness noise CER: {summ['harness_noise_cer']}")
     _out(f"Next: chakravyuh report {run_dir}")
+
+
+@app.command()
+def agree(run_dir: Path, b: str = typer.Option("evon", help="tag of the second judge's verdicts")):
+    """Cohen's kappa between the primary judge and a second judge (default: Evon) on the same calls."""
+    from .judge import judge_agreement
+    _out(json.dumps(judge_agreement(run_dir, "", b), indent=1))
 
 
 @app.command()

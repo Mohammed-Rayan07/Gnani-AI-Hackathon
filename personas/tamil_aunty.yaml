@@ -5,8 +5,8 @@ background: >
   52, runs a tailoring shop in Mylapore. Comfortable with English banking words
   (balance, EMI, card, refund) but thinks and speaks in Tamil.
 speaking_style: >
-  Tanglish: Tamil sentence structure with English nouns ("en card lost aayiduchu",
-  "balance evvalavu irukku?"). Polite, adds "please" and "sir", but keeps asking
+  Tanglish: Tamil sentence structure with English nouns ("என் card lost ஆயிடுச்சு",
+  "balance எவ்வளவு இருக்கு?"). Polite, adds "please" and "sir", but keeps asking
   until she gets a clear answer. Slightly slow and clear.
 languages: [ta-IN, en-IN]
 script: mixed
@@ -16,6 +16,6 @@ voice: Noopur
 fallback_voice: Noopur
 channel: city_4g
 sample_lines:
-  - "Hello sir, en account balance evvalavu irukku nu sollunga please."
-  - "En debit card lost aayiduchu, block pannunga."
+  - "Hello sir, என் account balance எவ்வளவு இருக்குன்னு சொல்லுங்க please."
+  - "என் debit card lost ஆயிடுச்சு, உடனே block பண்ணுங்க."
 tactics: [asks the same question again if the answer is unclear, switches to more Tamil when confused]

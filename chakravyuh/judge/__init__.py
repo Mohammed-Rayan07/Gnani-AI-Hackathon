@@ -18,7 +18,7 @@ from pathlib import Path
 from ..models import CallRecord, CallVerdict, CriterionResult, Persona, Scenario
 from ..orchestrator import load_calls
 from . import deterministic, rubric
-from .stats import cer, wilson
+from .stats import cer, phonetic_cer, wilson
 
 
 def _passed(criteria: list[CriterionResult]) -> bool:
@@ -28,12 +28,16 @@ def _passed(criteria: list[CriterionResult]) -> bool:
 async def judge_call(call: CallRecord, p: Persona, sc: Scenario, judge_llm, use_llm: bool) -> tuple[CallVerdict, dict]:
     has_true = any(t.bot_text_true for t in call.turns)
     views = {}
+    primary_view = "true" if has_true else "heard"
     for view in (["true", "heard"] if has_true else ["heard"]):
         crit = deterministic.run_all(call, p, sc, view)
-        if use_llm:
+        # The LLM rubric runs once, on the primary view. The heard view gets the deterministic checks
+        # only: enough to spot harness errors (e.g. a canary that appears only because Prisma misheard)
+        # at half the judge tokens, which matters on free-tier daily limits.
+        if use_llm and view == primary_view:
             crit += await rubric.judge_call(judge_llm, call, p, sc, view)
         views[view] = crit
-    primary = views["true" if has_true else "heard"]
+    primary = views[primary_view]
     passed = _passed(primary)
     if passed and has_true and not _passed(views["heard"]):
         kind = "harness"                       # only the noisy-heard view failed
@@ -87,6 +91,7 @@ def summarize(calls: list[CallRecord], verdicts: list[CallVerdict]) -> dict:
 
     lat, gaps = [], []
     noise: dict[str, list[float]] = defaultdict(list)
+    noise_ph: dict[str, list[float]] = defaultdict(list)
     for call in calls:
         for t in call.turns[1:]:
             tm = t.timing
@@ -99,6 +104,9 @@ def summarize(calls: list[CallRecord], verdicts: list[CallVerdict]) -> dict:
                 c = cer(t.bot_text_true, t.bot_text_heard)
                 if c is not None:
                     noise[call.channel].append(c)
+                ph = phonetic_cer(t.bot_text_true, t.bot_text_heard)
+                if ph is not None:
+                    noise_ph[call.channel].append(ph)
 
     return {
         "calls": n_calls,
@@ -112,13 +120,23 @@ def summarize(calls: list[CallRecord], verdicts: list[CallVerdict]) -> dict:
         "failure_kinds": {k: sum(v.failure_kind == k for v in verdicts) for k in ("bot", "harness", "review")},
         "latency_to_first_word_s": {"p50": pct(lat, 0.5), "p90": pct(lat, 0.9), "n": len(lat)},
         "max_dead_air_s": {"p50": pct(gaps, 0.5), "p90": pct(gaps, 0.9)},
-        "harness_noise_cer": {ch: {"mean": round(statistics.mean(v), 3), "median": round(statistics.median(v), 3), "turns": len(v)}
+        # phonetic = script-neutral (mishearing only); raw = character-level, counts script choices too
+        "harness_noise_cer": {ch: {"mean": round(statistics.mean(noise_ph[ch]), 3) if noise_ph[ch] else None,
+                                   "median": round(statistics.median(noise_ph[ch]), 3) if noise_ph[ch] else None,
+                                   "raw_mean": round(statistics.mean(v), 3), "turns": len(v)}
                               for ch, v in sorted(noise.items())},
         "errors": [c.call_id for c in calls if c.ended_by == "error"],
     }
 
 
-async def judge_run(run_dir: Path, personas: dict, scenarios: dict, judge_llm, use_llm: bool, progress=None) -> dict:
+def _suffix(tag: str) -> str:
+    return f".{tag}" if tag else ""
+
+
+async def judge_run(run_dir: Path, personas: dict, scenarios: dict, judge_llm, use_llm: bool, progress=None,
+                    tag: str = "") -> dict:
+    """tag="" writes verdicts.json/summary.json (the primary judge, used by reports);
+    a tag such as "evon" writes verdicts.evon.json/summary.evon.json for a second judge."""
     calls = load_calls(run_dir)
     verdicts, extras = [], {}
     for call in calls:
@@ -129,7 +147,35 @@ async def judge_run(run_dir: Path, personas: dict, scenarios: dict, judge_llm, u
             progress(v)
     summary = summarize(calls, verdicts)
     summary["judge_model"] = verdicts[0].judge_model if verdicts else ""
-    (run_dir / "verdicts.json").write_text(
+    (run_dir / f"verdicts{_suffix(tag)}.json").write_text(
         json.dumps([{**v.model_dump(), **extras[v.call_id]} for v in verdicts], indent=1, ensure_ascii=False), encoding="utf-8")
-    (run_dir / "summary.json").write_text(json.dumps(summary, indent=1, ensure_ascii=False), encoding="utf-8")
+    (run_dir / f"summary{_suffix(tag)}.json").write_text(json.dumps(summary, indent=1, ensure_ascii=False), encoding="utf-8")
     return summary
+
+
+def judge_agreement(run_dir: Path, tag_a: str = "", tag_b: str = "evon") -> dict:
+    """Cohen's kappa between two judges over the same logged calls, overall and per LLM criterion."""
+    from .stats import cohens_kappa
+
+    va = {v["call_id"]: v for v in json.loads((run_dir / f"verdicts{_suffix(tag_a)}.json").read_text(encoding="utf-8"))}
+    vb = {v["call_id"]: v for v in json.loads((run_dir / f"verdicts{_suffix(tag_b)}.json").read_text(encoding="utf-8"))}
+    common = sorted(set(va) & set(vb))
+    overall = [(va[c]["passed"], vb[c]["passed"]) for c in common]
+    per: dict[str, list[tuple[bool, bool]]] = defaultdict(list)
+    for c in common:
+        a = {x["name"]: x["status"] for x in va[c]["criteria"] if x["source"] == "llm"}
+        b = {x["name"]: x["status"] for x in vb[c]["criteria"] if x["source"] == "llm"}
+        for name in set(a) & set(b):
+            if a[name] in ("pass", "fail") and b[name] in ("pass", "fail"):
+                per[name].append((a[name] == "pass", b[name] == "pass"))
+    k = cohens_kappa(overall)
+    rep = {"judge_a": next(iter(va.values()))["judge_model"] if va else None,
+           "judge_b": next(iter(vb.values()))["judge_model"] if vb else None,
+           "calls": len(common),
+           "agreement": round(sum(x == y for x, y in overall) / len(overall), 3) if overall else None,
+           "kappa": None if k is None else round(k, 3),
+           "per_criterion": {n: {"n": len(p), "kappa": None if cohens_kappa(p) is None else round(cohens_kappa(p), 3)}
+                             for n, p in sorted(per.items())},
+           "disagreements": [c for c in common if va[c]["passed"] != vb[c]["passed"]]}
+    (run_dir / f"agreement{_suffix(tag_a) or '.primary'}{_suffix(tag_b)}.json").write_text(json.dumps(rep, indent=1), encoding="utf-8")
+    return rep

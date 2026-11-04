@@ -54,9 +54,9 @@
 
 <h2>Harness noise floor</h2>
 <div class="card scroll">
-<p class="muted">Character error rate between what the bot really said and what Prisma heard through each simulated line. A failure that disappears when judged on the bot's real text is labelled a harness error, not a bot failure.</p>
-<table><tr><th>Line profile</th><th>What it simulates</th><th>CER mean</th><th>median</th><th>bot turns</th></tr>
-{% for name, n in s.harness_noise_cer.items() %}<tr><td class="mono">{{ name }}</td><td>{{ profiles[name].description if name in profiles else '' }}</td><td>{{ n.mean|pct }}</td><td>{{ n.median|pct }}</td><td>{{ n.turns }}</td></tr>{% endfor %}
+<p class="muted">How badly Prisma mishears the bot through each simulated line. <b>Phonetic CER</b> compares consonant skeletons after mapping every script to Latin and numbers to digits, so "बैलेंस" = "balance" and "seven three" = "73"; it measures mishearing, not spelling. Raw CER is shown for reference. A failure that disappears when judged on the bot's real text is labelled a harness error, not a bot failure.</p>
+<table><tr><th>Line profile</th><th>What it simulates</th><th>Phonetic CER mean</th><th>median</th><th>raw CER</th><th>bot turns</th></tr>
+{% for name, n in s.harness_noise_cer.items() %}<tr><td class="mono">{{ name }}</td><td>{{ profiles[name].description if name in profiles else '' }}</td><td>{{ n.mean|pct }}</td><td>{{ n.median|pct }}</td><td class="muted">{{ n.raw_mean|pct }}</td><td>{{ n.turns }}</td></tr>{% endfor %}
 </table></div>
 
 <h2>How to read this</h2>

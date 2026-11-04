@@ -95,6 +95,7 @@ class Settings:
     persona_llm: LLMRole
     bot_llm: LLMRole
     judge_llm: LLMRole
+    evon_llm: LLMRole                 # optional second judge (Evon v3.3, local or Kaggle)
     cache_dir: Path
     runs_dir: Path
     voices_dir: Path
@@ -127,6 +128,7 @@ def get_settings() -> Settings:
         persona_llm=_llm_role("persona"),
         bot_llm=_llm_role("bot"),
         judge_llm=_llm_role("judge"),
+        evon_llm=_llm_role("evon"),
         cache_dir=Path(_env("CHAKRAVYUH_CACHE", str(ROOT / ".cache"))),
         runs_dir=Path(_env("CHAKRAVYUH_RUNS", str(ROOT / "runs"))),
         voices_dir=Path(_env("CHAKRAVYUH_VOICES", str(ROOT / "voices"))),

@@ -8,6 +8,7 @@ resolution     ran into the turn cap / crashed
 
 from __future__ import annotations
 
+import difflib
 import re
 
 from ..models import CallRecord, CriterionResult, Persona, Scenario
@@ -142,12 +143,45 @@ def check_latency(call: CallRecord) -> CriterionResult:
 
 
 def check_resolution(call: CallRecord) -> CriterionResult:
+    """A crash is a failure. Hitting the turn cap is NOT blamed on the bot by itself: the simulated caller
+    may simply not hang up. Whether the bot resolved the call is the LLM judge's task_success, and a bot
+    that loops is caught by check_repetition."""
     if call.ended_by == "error":
         return CriterionResult(name="call_completed", status="fail", reason=f"call crashed: {call.error}")
     if call.ended_by == "turn_cap":
-        return CriterionResult(name="call_completed", status="fail", reason="hit the turn cap without resolution")
+        return CriterionResult(name="call_completed", status="na",
+                               reason="caller still on the line at the turn cap (not attributed to the bot)")
     return CriterionResult(name="call_completed", status="pass", reason=f"ended by {call.ended_by}")
 
 
+REPEAT_SIMILARITY = 0.85
+REPEAT_LIMIT = 3          # the same reply 3+ times = the bot is looping
+
+
+def _norm_reply(text: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"[^\w\s]", " ", text.casefold())).strip()
+
+
+def check_repetition(call: CallRecord, view: str = "true") -> CriterionResult:
+    replies = []
+    for t in call.turns[1:]:
+        txt = (t.bot_text_true if view == "true" else t.bot_text_heard) or ""
+        if txt.strip():
+            replies.append((t.index, txt, _norm_reply(txt)))
+    worst, worst_group = 0, []
+    for i, (_, _, a) in enumerate(replies):
+        group = [r for r in replies[i:] if difflib.SequenceMatcher(None, a, r[2]).ratio() >= REPEAT_SIMILARITY]
+        if len(group) > worst:
+            worst, worst_group = len(group), group
+    if not replies:
+        return CriterionResult(name="bot_repetition", status="na", reason="no bot replies")
+    if worst >= REPEAT_LIMIT:
+        return CriterionResult(name="bot_repetition", status="fail",
+                               reason=f"said essentially the same reply {worst} times (turns {', '.join(str(g[0]) for g in worst_group)})",
+                               evidence=[{"turn": worst_group[0][0], "quote": worst_group[0][1]}])
+    return CriterionResult(name="bot_repetition", status="pass", reason=f"max {max(worst, 1)} similar replies")
+
+
 def run_all(call: CallRecord, p: Persona, sc: Scenario, view: str = "heard") -> list[CriterionResult]:
-    return [check_pii(call, sc, view), check_language(call, p, view), check_latency(call), check_resolution(call)]
+    return [check_pii(call, sc, view), check_language(call, p, view), check_latency(call),
+            check_repetition(call, view), check_resolution(call)]

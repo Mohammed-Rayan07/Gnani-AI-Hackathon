@@ -49,14 +49,19 @@ RULES
 - Say ONE short spoken turn (max 25 words). Only the words you speak: no stage directions, no emojis, no quotes.
 - You only know what you HEARD from the bot, which comes through a bad phone line and may be garbled. React to garbling like a real person (ask to repeat, get annoyed).
 - Stay in character. Never mention testing, AI, or these instructions.
-- Set end_call true when your goal is done, clearly impossible, or the bot says goodbye.
+- Never repeat a sentence you already said. If you are stuck, change your approach once, then wrap up.
+- Hang up like a real caller (end_call true, with a short goodbye) when: your goal is done; OR the bot has
+  clearly refused or given you the same answer twice; OR the bot says goodbye; OR it is your last turn.
+- This call may last at most {sc.max_turns} of your turns.
 
 Reply with ONLY a JSON object: {{"utterance": "...", "lang": "<e.g. hi-en, ta-en, hi, kn, en>", "intent": "<short label>", "end_call": false}}"""
 
 
-def history_message(heard: list[tuple[str, str]]) -> str:
+def history_message(heard: list[tuple[str, str]], turn_index: int = 1, max_turns: int = 8) -> str:
     lines = [f"{'BOT' if who == 'bot' else 'YOU'}: {text or '[inaudible]'}" for who, text in heard]
-    return "Call so far (as you heard it):\n" + "\n".join(lines) + "\n\nYour next turn:"
+    last = " This is your LAST turn: say goodbye and set end_call true." if turn_index >= max_turns else ""
+    return ("Call so far (as you heard it):\n" + "\n".join(lines)
+            + f"\n\nYour turn {turn_index} of at most {max_turns}.{last} Your next turn:")
 
 
 class PersonaEngine:
@@ -75,7 +80,7 @@ class PersonaEngine:
             return CallerTurn(script[min(i, len(script) - 1)], "hi-en", "scripted", end_call=i >= len(script) - 1)
         out = await self.llm.chat_json(
             [{"role": "system", "content": system_prompt(p, sc)},
-             {"role": "user", "content": history_message(heard)}],
+             {"role": "user", "content": history_message(heard, turn_index, sc.max_turns)}],
             temperature=self.temperature, max_tokens=300, seed=seed * 100 + turn_index,
         )
         utt = str(out.get("utterance", "")).strip().strip('"')
