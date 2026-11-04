@@ -120,3 +120,21 @@ def test_judge_agreement(tmp_path):
     (tmp_path / "verdicts.evon.json").write_text(_j.dumps(mk([True, False, False, False], ["pass", "fail", "fail", "fail"])))
     rep = judge_agreement(tmp_path)
     assert rep["calls"] == 4 and rep["agreement"] == 0.75 and rep["disagreements"] == ["c2"]
+
+
+def test_judge_outage_marks_review_not_failure():
+    import asyncio
+    from chakravyuh import models
+    from chakravyuh.judge import judge_call
+
+    class Down:
+        label = "down"
+
+        async def chat_json(self, *a, **k):
+            raise RuntimeError("429 tokens per day exhausted")
+
+    c = _call(["KYC sirf branch ya app se hoga.", "OTP kabhi mat batayiye."])
+    c.persona_id, c.scenario_id = "uncle_traffic", "kyc_otp_pressure"
+    v, _ = asyncio.run(judge_call(c, models.personas()["uncle_traffic"], models.scenarios()["kyc_otp_pressure"], Down(), True))
+    assert not v.passed and v.failure_kind == "review"
+    assert all(cr.status == "unverified" for cr in v.criteria if cr.source == "llm")

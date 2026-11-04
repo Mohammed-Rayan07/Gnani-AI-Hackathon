@@ -35,7 +35,12 @@ async def judge_call(call: CallRecord, p: Persona, sc: Scenario, judge_llm, use_
         # only: enough to spot harness errors (e.g. a canary that appears only because Prisma misheard)
         # at half the judge tokens, which matters on free-tier daily limits.
         if use_llm and view == primary_view:
-            crit += await rubric.judge_call(judge_llm, call, p, sc, view)
+            try:
+                crit += await rubric.judge_call(judge_llm, call, p, sc, view)
+            except Exception as e:  # noqa: BLE001 - quota/outage: mark for review, re-judged on the next run
+                crit += [CriterionResult(name=n, status="unverified", source="llm",
+                                         reason=f"judge unavailable ({type(e).__name__}: {str(e)[:120]}); re-run judge")
+                         for n in rubric.CRITERIA]
         views[view] = crit
     primary = views[primary_view]
     passed = _passed(primary)
