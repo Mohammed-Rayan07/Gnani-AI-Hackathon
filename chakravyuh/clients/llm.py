@@ -11,14 +11,16 @@ Every result carries the model name so reports attribute work honestly.
 from __future__ import annotations
 
 import json
+import logging
 import re
 
 import httpx
 
 from ..cache import DiskCache, key
 from ..config import LLMRole
-from ._http import request_with_retry
+from ._http import GnaniAPIError, request_with_retry
 
+log = logging.getLogger("chakravyuh.llm")
 THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 
 
@@ -57,6 +59,8 @@ class LLMClient:
         self.role = role
         self.cache = cache
         self._http = httpx.AsyncClient(timeout=httpx.Timeout(180.0, connect=15.0))
+        self._drop_json = False
+        self._drop_seed = False
 
     @property
     def label(self) -> str:
@@ -81,12 +85,43 @@ class LLMClient:
         headers = {"Content-Type": "application/json"}
         if self.role.api_key:
             headers["Authorization"] = f"Bearer {self.role.api_key}"
-        r = await request_with_retry(self._http, "POST", f"{self.role.base_url}/chat/completions",
-                                     what=f"LLM[{self.role.role}]", headers=headers, json=body)
-        content = r.json()["choices"][0]["message"].get("content") or ""
+        content = await self._post_adaptive(body, headers)
         if use_cache and self.cache and cacheable:
             self.cache.put_json(k, {"content": content})
         return content
+
+    async def _post_adaptive(self, body: dict, headers: dict) -> str:
+        """POST, adapting to provider quirks instead of failing the run:
+        - a 400 mentioning response_format / seed: drop that field for this client and retry;
+        - empty content with finish_reason=length (thinking models spend the budget on
+          reasoning): retry once with a 4x token budget."""
+        body = dict(body)
+        for _ in range(4):
+            if self._drop_json:
+                body.pop("response_format", None)
+            if self._drop_seed:
+                body.pop("seed", None)
+            try:
+                r = await request_with_retry(self._http, "POST", f"{self.role.base_url}/chat/completions",
+                                             what=f"LLM[{self.role.role}]", headers=headers, json=body)
+            except GnaniAPIError as e:
+                msg = e.body.lower()
+                if e.status == 400 and "response_format" in body and ("response_format" in msg or "json" in msg) and not self._drop_json:
+                    log.warning("%s rejected response_format; retrying without it (set %s_LLM_JSON_MODE=false to skip)",
+                                self.role.model, self.role.role.upper())
+                    self._drop_json = True
+                    continue
+                if e.status == 400 and "seed" in body and "seed" in msg and not self._drop_seed:
+                    self._drop_seed = True
+                    continue
+                raise
+            choice = r.json()["choices"][0]
+            content = choice["message"].get("content") or ""
+            if not content.strip() and choice.get("finish_reason") == "length" and body.get("max_tokens", 0) < 6000:
+                body["max_tokens"] = body.get("max_tokens", 800) * 4
+                continue
+            return content
+        raise LLMError(f"{self.role.model}: no usable reply after adapting the request")
 
     async def chat_json(self, messages: list[dict], *, temperature: float = 0.0, max_tokens: int = 800,
                         retries: int = 2, seed: int | None = None) -> dict:

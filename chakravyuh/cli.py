@@ -62,6 +62,39 @@ def _check_judge_differs(c: Clients, allow_same: bool) -> None:
                                  "Pass --allow-same-judge only for debugging.")
 
 
+# ----------------------------------------------------------------------------- doctor
+
+@app.command()
+def doctor(offline_ok: bool = typer.Option(False, help="only check config, make no API calls")):
+    """Verify .env, keys, network, Gnani TTS/STT (8 kHz too) and all three LLMs. Prints fixes."""
+    from . import doctor as d
+
+    s = get_settings()
+    checks = d.config_checks(s)
+
+    async def go():
+        if offline_ok or s.offline or not s.gnani_api_key:
+            return []
+        c = build_clients(s)
+        res = await d.network_checks(s)
+        res += await d.gnani_checks(s, c)
+        res += await d.llm_checks(s, c)
+        _out(f"\nCredits used by doctor: {c.ledger.summary()['spent']}")
+        await _close(c)
+        return res
+
+    checks += asyncio.run(go())
+    _out("")
+    for ch in checks:
+        _out(f"  {'OK  ' if ch.ok else 'FAIL'}  {ch.name:<30} {ch.detail}")
+        if not ch.ok and ch.fix:
+            _out(f"        fix: {ch.fix}")
+    bad = [ch for ch in checks if not ch.ok]
+    _out(f"\n{len(checks) - len(bad)}/{len(checks)} checks passed." + ("" if bad else " Ready: run `chakravyuh smoke` next."))
+    if bad:
+        raise typer.Exit(code=1)
+
+
 # ----------------------------------------------------------------------------- smoke
 
 @app.command()

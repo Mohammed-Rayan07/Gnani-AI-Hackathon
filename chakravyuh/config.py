@@ -123,7 +123,7 @@ def get_settings() -> Settings:
         rate_tts_per_1k_chars=float(_env("RATE_TTS_PER_1K_CHARS", "2.8")),
         rate_vc_per_call=float(_env("RATE_VC_PER_CALL", "1.0")),
         confirm_above=float(_env("CONFIRM_ABOVE", "200")),
-        concurrency=int(_env("CONCURRENCY", "6")),
+        concurrency=int(_env("CONCURRENCY", "2")),
         persona_llm=_llm_role("persona"),
         bot_llm=_llm_role("bot"),
         judge_llm=_llm_role("judge"),

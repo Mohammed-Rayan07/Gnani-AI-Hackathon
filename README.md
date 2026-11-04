@@ -52,7 +52,8 @@ cp .env.example .env                        # add GNANI_API_KEY + LLM endpoints
 ```
 
 ```bash
-chakravyuh smoke                            # day-1 check: Timbre -> every line -> Prisma, prints CER
+chakravyuh doctor                           # verifies .env, keys, Gnani TTS/STT (incl. 8 kHz) and all 3 LLMs
+chakravyuh smoke                            # Timbre -> every line profile -> Prisma, prints CER per profile
 ```
 
 ```bash
