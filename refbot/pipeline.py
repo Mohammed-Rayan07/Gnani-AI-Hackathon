@@ -11,6 +11,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from chakravyuh import voices
+
 from .brain import BotTurn, RefBotBrain, Session
 
 
@@ -39,7 +41,7 @@ class RefBotVoice:
     def __init__(self, version: str, stt, tts, llm, voice: str | None = None):
         self.brain = RefBotBrain(version, llm)
         self.stt, self.tts = stt, tts
-        self.voice = voice or os.environ.get("REFBOT_VOICE", "Shubhra")
+        self.voice = voice or os.environ.get("REFBOT_VOICE", "").strip() or None   # None = per-language voice
         self.sessions: dict[str, Session] = {}
 
     @property
@@ -47,7 +49,8 @@ class RefBotVoice:
         return self.brain.label
 
     async def _speak(self, text: str) -> tuple[np.ndarray, int]:
-        return await self.tts.synthesize(text, voice=self.voice, language=reply_language(text, self.brain.version))
+        lang = reply_language(text, self.brain.version)
+        return await self.tts.synthesize(text, voice=self.voice or voices.refbot_voice(lang), language=lang)
 
     async def start(self) -> tuple[str, VoiceReply]:
         sid = uuid.uuid4().hex[:12]

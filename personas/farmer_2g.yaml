@@ -12,8 +12,8 @@ languages: [hi-IN]
 script: devanagari
 expected_reply_language: hi
 tts_language: hi-IN
-voice: Deepak
-fallback_voice: Deepak
+voice: Vikrant
+fallback_voice: Vikrant
 channel: rural_2g
 sample_lines:
   - "हाँ जी साहब, हमरा खाता में कितना पैसा है, बता दीजिए।"

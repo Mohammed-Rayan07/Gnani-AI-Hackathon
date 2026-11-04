@@ -11,8 +11,8 @@ languages: [kn-IN]
 script: kannada
 expected_reply_language: kn
 tts_language: kn-IN
-voice: Deepak
-fallback_voice: Deepak
+voice: Kavin
+fallback_voice: Kavin
 channel: city_4g
 sample_lines:
   - "ಸಾರ್, ನನ್ನ ಅಕೌಂಟ್ ಬ್ಯಾಲೆನ್ಸ್ ಎಷ್ಟು ಇದೆ ಹೇಳಿ."

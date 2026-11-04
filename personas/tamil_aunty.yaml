@@ -12,8 +12,8 @@ languages: [ta-IN, en-IN]
 script: mixed
 expected_reply_language: ta-en
 tts_language: ta-IN
-voice: Kaveri
-fallback_voice: Kaveri
+voice: Noopur
+fallback_voice: Noopur
 channel: city_4g
 sample_lines:
   - "Hello sir, en account balance evvalavu irukku nu sollunga please."

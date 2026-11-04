@@ -21,8 +21,8 @@ class Persona(BaseModel):
     script: Literal["latin", "devanagari", "tamil", "kannada", "bengali", "telugu", "malayalam", "gujarati", "gurmukhi", "mixed"] = "mixed"
     expected_reply_language: str                  # what a good bot should mirror: "hi-en", "ta-en", "hi", "kn", "en"
     tts_language: str                             # Timbre v2.5 language code
-    voice: str = "Pranav"                         # Timbre voice name, or "clone:<name>" for an embedding in voices/
-    fallback_voice: str = "Pranav"                # used (and reported) when the clone embedding is missing
+    voice: str = "Deepak"                         # Timbre voice name, or "clone:<name>" for an embedding in voices/
+    fallback_voice: str = "Deepak"                # used (and reported) when the clone embedding is missing
     channel: str = "city_4g"
     adversarial: bool = False                     # social-engineering persona: never run against third-party bots
     sample_lines: list[str] = Field(default_factory=list)

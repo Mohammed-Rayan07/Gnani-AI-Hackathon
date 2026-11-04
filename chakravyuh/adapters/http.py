@@ -80,7 +80,7 @@ class TextHTTPBot:
 
     name = "text-http (logic-only)"
 
-    def __init__(self, base_url: str, stt, tts, voice: str = "Shubhra", version: str = "?", label: str | None = None):
+    def __init__(self, base_url: str, stt, tts, voice: str | None = None, version: str = "?", label: str | None = None):
         self.base = base_url.rstrip("/")
         self.stt, self.tts, self.voice = stt, tts, voice
         self.version = version
@@ -90,7 +90,9 @@ class TextHTTPBot:
 
     async def _speak(self, text: str) -> tuple[np.ndarray, int]:
         from refbot.pipeline import reply_language
-        return await self.tts.synthesize(text or "...", voice=self.voice, language=reply_language(text, "v2"))
+        from .. import voices
+        lang = reply_language(text, "v2")
+        return await self.tts.synthesize(text or "...", voice=self.voice or voices.refbot_voice(lang), language=lang)
 
     async def start_call(self) -> tuple[str, BotReply]:
         t0 = time.perf_counter()

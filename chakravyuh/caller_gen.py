@@ -64,9 +64,16 @@ def language_mapping(description: str) -> tuple[list[str], str | None]:
     return out, " ".join(dict.fromkeys(notes)) or None
 
 
-def _voices() -> list[str]:
+def _voices(language: str | None = None) -> list[str]:
+    """Timbre v2.5 voices for `language` (TIMBRE_VOICES, if set, restricts the pool)."""
     import os
-    return [v.strip() for v in os.environ.get("TIMBRE_VOICES", "Pranav,Kaveri,Shubhra,Deepak").split(",") if v.strip()]
+
+    from . import voices
+    pool = voices.for_language(language) if language else list(voices.V25)
+    allowed = [v.strip() for v in os.environ.get("TIMBRE_VOICES", "").split(",") if v.strip()]
+    if allowed:
+        pool = [v for v in pool if v in allowed] or [v for v in allowed if v in voices.V25] or pool
+    return pool or [voices.DEFAULT_VOICE]
 
 
 def persona_prompt(description: str, codes: list[str], note: str | None, scenarios: dict) -> list[dict]:
@@ -76,7 +83,7 @@ def persona_prompt(description: str, codes: list[str], note: str | None, scenari
         "speaking_style": "how they talk: code-mix ratio, pace, temper, filler words",
         "languages": [f"{c}-IN" for c in codes], "script": "mixed|devanagari|tamil|kannada|bengali|telugu|malayalam|gujarati|gurmukhi|latin",
         "expected_reply_language": "e.g. hi-en, ta-en, hi, kn", "tts_language": f"one of {[c + '-IN' for c in SUPPORTED]}",
-        "voice": f"one of {_voices()}", "channel": f"one of {list(channel.PROFILES)}",
+        "voice": f"one of {_voices(codes[0] + '-IN')} (pick the gender that fits)", "channel": f"one of {list(channel.PROFILES)}",
         "sample_lines": ["2 short example lines in their voice"], "tactics": ["2-3 behaviours that stress a bot"],
         "scenario": f"one of {list(scenarios)}",
     }
@@ -93,7 +100,7 @@ def offline_persona(description: str, codes: list[str]) -> dict:
             "speaking_style": "as described in the comment", "languages": [f"{c}-IN" for c in codes],
             "script": "mixed" if "en" in codes and main != "en" else SCRIPT_FOR.get(main, "latin"),
             "expected_reply_language": f"{main}-en" if "en" in codes and main != "en" else main,
-            "tts_language": f"{main}-IN", "voice": _voices()[0], "channel": "city_4g",
+            "tts_language": f"{main}-IN", "voice": _voices(f"{main}-IN")[0], "channel": "city_4g",
             "sample_lines": [], "tactics": ["repeats the question"], "scenario": "balance_block_card"}
 
 
@@ -110,11 +117,12 @@ async def build_persona(description: str, llm, scenarios: dict) -> tuple[Persona
         d = await llm.chat_json(persona_prompt(description, codes, note, scenarios), temperature=0.7, max_tokens=900, seed=1)
     scenario_id = d.pop("scenario", None)
     d["id"] = "community_" + slug(description)
-    d["voice"] = d.get("voice") if d.get("voice") in _voices() else _voices()[0]
-    d["fallback_voice"] = d["voice"]
     d["channel"] = d.get("channel") if d.get("channel") in channel.PROFILES else "city_4g"
     if d.get("tts_language", "")[:2] not in SUPPORTED:
         d["tts_language"] = f"{codes[0]}-IN"
+    pool = _voices(d["tts_language"])
+    d["voice"] = d.get("voice") if d.get("voice") in pool else pool[0]
+    d["fallback_voice"] = d["voice"]
     d["languages"] = [l for l in d.get("languages", []) if l[:2] in SUPPORTED] or [f"{codes[0]}-IN"]
     d["adversarial"] = False
     d["generated_by"] = llm.label

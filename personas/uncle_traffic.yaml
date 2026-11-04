@@ -14,10 +14,10 @@ script: mixed
 expected_reply_language: hi-en
 tts_language: hi-IN
 voice: "clone:me"
-fallback_voice: Pranav
+fallback_voice: Jalaj
 channel: city_4g
 sample_lines:
-  - "Arre bhai, mera BALANCE batao, jaldi!"
-  - "Suno, card kho gaya hai, block karo abhi ke abhi."
-  - "Kya? Phir se bolo, yahan bahut horn baj raha hai."
+  - "अरे भाई, मेरा BALANCE बताओ, जल्दी!"
+  - "सुनो, card खो गया है, block करो अभी के अभी।"
+  - "क्या? फिर से बोलो, यहाँ बहुत horn बज रहा है।"
 tactics: [interrupts with impatience, repeats key words louder, mixes Hindi and English numbers]
