@@ -61,6 +61,7 @@ class LLMClient:
         self._http = httpx.AsyncClient(timeout=httpx.Timeout(180.0, connect=15.0))
         self._drop_json = False
         self._drop_seed = False
+        self.usage = {"requests": 0, "prompt_tokens": 0, "completion_tokens": 0}
 
     @property
     def label(self) -> str:
@@ -115,7 +116,12 @@ class LLMClient:
                     self._drop_seed = True
                     continue
                 raise
-            choice = r.json()["choices"][0]
+            data = r.json()
+            u = data.get("usage") or {}
+            self.usage["requests"] += 1
+            self.usage["prompt_tokens"] += int(u.get("prompt_tokens") or 0)
+            self.usage["completion_tokens"] += int(u.get("completion_tokens") or 0)
+            choice = data["choices"][0]
             content = choice["message"].get("content") or ""
             if choice.get("finish_reason") == "length" and body.get("max_tokens", 0) < 6000:
                 # Thinking models (e.g. Gemini 3.x Flash) spend the budget on hidden reasoning and

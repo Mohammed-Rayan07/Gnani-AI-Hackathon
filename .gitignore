@@ -9,5 +9,3 @@ voices/*.json
 voices/*.wav
 *.sqlite
 reels/
-site/
-!site/.gitkeep

@@ -40,6 +40,16 @@ def _out(msg: str = "") -> None:
     typer.echo(msg)
 
 
+def _usage_line(c: Clients) -> str:
+    parts = []
+    for role, x in (("persona", c.persona_llm), ("bot", c.bot_llm), ("judge", c.judge_llm)):
+        u = getattr(x, "usage", None)
+        if u and u["requests"]:
+            parts.append(f"{role} {getattr(x, 'label', '?')}: {u['requests']} req, "
+                         f"{u['prompt_tokens'] + u['completion_tokens']:,} tokens")
+    return "LLM usage: " + ("; ".join(parts) if parts else "none")
+
+
 async def _close(c: Clients) -> None:
     for x in (c.stt, c.tts, c.persona_llm, c.bot_llm, c.judge_llm):
         if hasattr(x, "aclose"):
@@ -211,7 +221,7 @@ def run(bot: str = typer.Option("inprocess:v1", help="inprocess:v1|v2, audio-htt
         await _close(c)
 
     asyncio.run(go())
-    _out(f"Run saved to {run_dir}\nSpent so far: {c.ledger.summary()['spent']} credits\nNext: chakravyuh judge {run_dir}")
+    _out(f"Run saved to {run_dir}\nSpent so far: {c.ledger.summary()['spent']} credits\n{_usage_line(c)}\nNext: chakravyuh judge {run_dir}")
 
 
 def _abort(msg: str) -> int:
@@ -258,6 +268,7 @@ def judge(run_dir: Path, no_llm: bool = typer.Option(False, "--no-llm", help="de
         return summ
 
     summ = asyncio.run(go())
+    _out(_usage_line(c))
     lo, hi = summ["call_pass_ci95"]
     _out(f"\n{summ['calls_passed']}/{summ['calls']} calls passed (95% CI {lo:.0%}-{hi:.0%}); "
          f"{summ['cells_passed']}/{summ['cells_total']} scenarios passed (>= 2/3 seeds). Judge: {summ['judge_model']}")
@@ -298,6 +309,14 @@ def lint():
     if problems:
         raise typer.Exit(code=1)
     _out("Synthetic-data lint: clean.")
+
+
+@app.command()
+def site(runs: list[Path], out: Path = typer.Option(Path("site"), help="output folder (publish with GitHub Pages)")):
+    """Build the public 'Hear it fail' site from judged runs: give v1 then v2 run folders (plus any caller runs)."""
+    from .site import build_site
+    p = build_site(runs, out)
+    _out(f"Site: {p}  (open index.html locally; push the folder and enable GitHub Pages)")
 
 
 @app.command()

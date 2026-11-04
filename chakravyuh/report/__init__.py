@@ -71,7 +71,8 @@ def write_scorecard(run_dir: Path) -> Path:
     return out
 
 
-def write_diff(run_a: Path, run_b: Path, out: Path | None = None) -> Path:
+def write_diff(run_a: Path, run_b: Path, out: Path | None = None, link_a: str | None = None, link_b: str | None = None) -> Path:
+    """link_a/link_b: audio URL prefixes to use instead of paths relative to the run folders (site builds)."""
     run_a, run_b = Path(run_a), Path(run_b)
     ma, sa, va, ca = _load(run_a)
     mb, sb, vb, cb = _load(run_b)
@@ -85,8 +86,8 @@ def write_diff(run_a: Path, run_b: Path, out: Path | None = None) -> Path:
     else:
         verdict = "inconclusive (95% intervals overlap)"
     out = Path(out) if out else run_b / "diff.html"
-    rel_a = os.path.relpath(run_a, out.parent).replace(os.sep, "/") + "/"
-    rel_b = os.path.relpath(run_b, out.parent).replace(os.sep, "/") + "/"
+    rel_a = link_a if link_a is not None else os.path.relpath(run_a, out.parent).replace(os.sep, "/") + "/"
+    rel_b = link_b if link_b is not None else os.path.relpath(run_b, out.parent).replace(os.sep, "/") + "/"
     still_failing = [r for r in _failure_rows(vb, cb, rel_b) if r["v"]["failure_kind"] == "bot"]
     html = _env().get_template("diff.html.j2").render(
         ma=ma, mb=mb, sa=sa, sb=sb, ga=ga, gb=gb, keys=keys, ci_a=ci_a, ci_b=ci_b, verdict=verdict,

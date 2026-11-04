@@ -1,0 +1,18 @@
+{% extends "_base.html.j2" %}
+{% block title %}CHAKRAVYUH: hear it fail{% endblock %}
+{% block body %}
+<h1>CHAKRAVYUH: hear Indian voice bots fail</h1>
+<p class="muted">Synthetic Indian callers phone a voice bot over a simulated noisy 8 kHz line. Every failure comes back with the audio. Built on Gnani Prisma, Timbre (plus voice cloning) and Evon.</p>
+{% if diff %}<div class="card"><h3>v1 → v2 regression diff</h3><p>What hardening the bot fixed, and what it still gets wrong.</p><a href="{{ diff }}"><b>Open the diff →</b></a></div>{% endif %}
+<h2>Runs</h2>
+{% for c in cards %}
+<div class="card">
+  <h3>{{ c.manifest.bot_label }}{% if c.manifest.comment %} · caller from a comment{% endif %}</h3>
+  {% if c.manifest.comment %}<p class="muted">“{{ c.manifest.comment }}”</p>{% endif %}
+  <p><b>{{ c.summary.cells_passed }}/{{ c.summary.cells_total }}</b> scenarios passed · <b>{{ c.summary.calls_passed }}/{{ c.summary.calls }}</b> calls (95% CI {{ c.summary.call_pass_ci95[0]|pct }}–{{ c.summary.call_pass_ci95[1]|pct }}) · judge {{ c.summary.judge_model }}</p>
+  {% for r in c.reels[:3] %}<video controls preload="none" style="max-width:100%;width:320px;border-radius:8px;margin:4px" src="{{ c.dir }}/{{ r }}"></video>{% endfor %}
+  <p><a href="{{ c.dir }}/index.html"><b>Scorecard and failure audio →</b></a></p>
+</div>
+{% endfor %}
+<div class="card"><h3>Method</h3><p class="muted">Code, line simulator, judge rules and limitations are on GitHub (README). All names, accounts, cards, mobiles, PANs and OTPs are fictional.</p></div>
+{% endblock %}
