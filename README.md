@@ -47,7 +47,7 @@ logged turns ──▶ deterministic checks (PII canaries, language, latency, co
 ## Quickstart
 
 ```bash
-uv venv && uv pip install -e ".[dev]"      # Python 3.11+, ffmpeg on PATH
+uv sync --extra dev                         # Python 3.12 (pinned), ffmpeg on PATH
 cp .env.example .env                        # add GNANI_API_KEY + LLM endpoints
 ```
 

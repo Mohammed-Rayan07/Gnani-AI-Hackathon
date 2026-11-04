@@ -5,7 +5,7 @@ Run every command from the repo root with `uv run chakravyuh ...`. You can also 
 ## Once
 | Step | Command | Done when |
 |---|---|---|
-| Install | `uv venv` then `uv pip install -e ".[dev]"` then `uv run pytest -q` | the tests pass |
+| Install | `uv sync --extra dev` then `uv run pytest -q` (uses the pinned Python 3.12 + `uv.lock`) | the tests pass |
 | Configure | copy `.env.example` to `.env`, fill in the keys | – |
 | Verify | `chakravyuh doctor` | every check shows OK |
 | Calibrate cost | `chakravyuh smoke`, then read the app.gnani.ai usage page and set `RATE_*` in `.env` | rates set |
