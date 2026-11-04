@@ -113,6 +113,8 @@ async def run_version(c: Clients, version: str, run_dir: Path, specs: list[CallS
             for k in u:
                 u[k] = 0
     m["llm_usage"] = usage
+    log(f"  {version} LLM usage so far: " + ", ".join(
+        f"{r} {u['requests']} req / {u['prompt_tokens'] + u['completion_tokens']:,} tokens" for r, u in usage.items()))
     (run_dir / "manifest.json").write_text(json.dumps(m, indent=1, ensure_ascii=False), encoding="utf-8")
     return sorted({call_id(sp) for sp in todo} - _done_ids(run_dir))       # still-crashed calls
 
@@ -323,16 +325,40 @@ def update_readme(f: dict, readme: Path = ROOT / "README.md") -> bool:
 
 # ----------------------------------------------------------------------------- launch kit
 
-def write_kit(f: dict, kit_dir: Path, repo_url: str, site_url: str) -> list[Path]:
+CALLER_PHRASES = {
+    "uncle_traffic": "a Hinglish uncle shouting over traffic", "tamil_aunty": "a Tamil-English aunty",
+    "farmer_2g": "a farmer on a breaking 2G line", "kannada_auto": "a Kannada auto driver",
+    "social_engineer": 'a "bank officer" fishing for a (fake) OTP',
+}
+TAG_PLACEHOLDER = "[tag Gnani AI's company page here]"
+
+
+def _join(items: list[str]) -> str:
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def _judge_name(model: str | None) -> str:
+    if not model or model.startswith("deterministic"):
+        return "an LLM judge"
+    return model.split("/")[-1]                     # "openai/gpt-oss-120b" -> "gpt-oss-120b"
+
+
+def write_kit(f: dict, kit_dir: Path, repo_url: str, site_url: str, cloned: bool = False) -> list[Path]:
+    """Every claim is conditional on what actually ran: the caller list comes from the run's
+    personas, and the cloned-voice line only appears if voices/me.json exists."""
     kit_dir.mkdir(parents=True, exist_ok=True)
     n = f["calls_total"]
-    judge = f["judge_model"] or "an LLM judge"
+    judge = _judge_name(f["judge_model"])
+    order = sorted(f["personas"], key=lambda p: DEFAULT_PERSONAS.index(p) if p in DEFAULT_PERSONAS else 99)
+    callers = _join([CALLER_PHRASES.get(p, p.replace("_", " ")) for p in order]) if order else "synthetic callers"
+    clone_line = " The uncle is me, cloned with Gnani's Timbre." if cloned and "uncle_traffic" in f["personas"] else ""
+    clone_short = " The uncle is my own voice, cloned with Timbre." if clone_line else ""
     ek = next(iter(f["evon_agreement"].values()), None) if f["evon_agreement"] else None
     hk = next(iter(f["human_kappa"].values()), None) if f["human_kappa"] else None
     still = f["top_still_human"] or "nothing in this matrix (so I'm adding harder callers)"
     trust = (f"I hand-checked {hk['labelled']} calls: the judge agreed with me κ = {hk['cohens_kappa']}." if hk else
-             f"A second judge, Gnani's own Evon v3.3, agreed with it κ = {ek['kappa']} over {ek['calls']} calls." if ek else
-             "An LLM judge isn't ground truth, so every verdict has to quote the exact words, and the code checks the quote exists.")
+             f"a second judge, Gnani's own Evon v3.3, agreed with it κ = {ek['kappa']} over {ek['calls']} calls." if ek else
+             "an LLM judge isn't ground truth, so every verdict has to quote the exact words, and the code checks the quote exists.")
     banner = "<!-- OFFLINE DRY RUN NUMBERS: DO NOT POST -->\n\n" if f["offline"] else ""
     post = f"""{banner}I made {n} phone calls to a voice bot. Not one of the callers was real.
 
@@ -340,7 +366,7 @@ A voice bot that sounds great in a demo can fall apart on a real call: an uncle 
 
 So I built CHAKRAVYUH. Synthetic Indian callers phone a voice bot over a simulated noisy 8 kHz line, and a scorecard comes back with the failure audio.
 
-The callers: a Hinglish uncle, a Tamil-English aunty, a farmer on bad 2G, a Kannada auto driver, and a "bank officer" fishing for a (fake) OTP. The uncle is me, cloned with Gnani's Timbre.
+The callers: {callers}.{clone_line}
 
 How it works:
 → Timbre voices the callers
@@ -357,17 +383,17 @@ All data is synthetic. No real numbers, Aadhaar, PAN or recordings.
 Your turn: describe a caller in the comments (e.g. "my dadi who only speaks Marathi and hangs up if you're slow"). CHAKRAVYUH will build them, call the bot, and I'll reply with the clip of what happened.
 
 #GreatIndianAIInternshipChallenge #GnaniAI #VoiceAI
-@Gnani.ai
+{TAG_PLACEHOLDER}
 """
     first_comment = f"""Repo (code, line simulator, judge rules, limitations): {repo_url}
 Scorecards + "hear it fail" audio: {site_url}
 Feedback welcome, especially from anyone who's run bots on real telephony."""
     x_thread = f"""{banner}1/ I made {n} phone calls to a voice bot. Not one of the callers was real. 🧵 [video] #GreatIndianAIInternshipChallenge #GnaniAI @GnaniAI
 2/ Voice bot demos run on clean audio. Indian phone lines are 8 kHz, noisy, code-mixed and full of interruptions.
-3/ The callers: Hinglish uncle in traffic, Tamil-English aunty, farmer on 2G, Kannada auto driver, a "bank officer" after a fake OTP. The uncle is my own voice, cloned with Timbre.
+3/ The callers: {callers}.{clone_short}
 4/ Prisma transcribes the bot through the same bad line. {judge} judges and must quote exact words as evidence. Output: a scorecard with the failure audio.
 5/ Bot v1: {f['v1_cells']}/{f['cells_total']} scenarios, {f['v1_leaks']} calls leaked a fake account number. v2: {f['v2_cells']}/{f['cells_total']}, {f['v2_leaks']} leaks.
-6/ Still failing: v2 {still}. {trust}
+6/ Still failing: v2 {still}. {trust[0].upper() + trust[1:]}
 7/ All synthetic. Code: {repo_url} · Audio: {site_url}. Reply with a caller you want me to build; I'll run them against the bot and reply with the clip.
 """
     replies = """# Comment-loop replies

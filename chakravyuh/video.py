@@ -98,7 +98,8 @@ async def build_demo(f: dict, picks: dict, reels: dict, tts, voices_dir: Path, o
     n, cells = f["calls_total"], f["cells_total"]
     P = models.personas()
 
-    hook_key = "language" if "language" in reels else ("leak" if "leak" in reels else None)
+    # the hook must stop the scroll: the bot reading out a (fake) account number beats everything else
+    hook_key = next((k for k in ("leak", "language", "rural_2g", "still_failing") if reels.get(k)), None)
     segs: list[Segment] = []
     # 2. title
     segs.append(Segment("title", 3.2, [("Big", f"{n} phone calls to a voice bot."), ("Sub", "Not one caller was real.")],
@@ -129,7 +130,8 @@ async def build_demo(f: dict, picks: dict, reels: dict, tts, voices_dir: Path, o
                                      ("Line", f"5. {judge} judges, quoting the exact words")], vo=how_vo, stagger=True))
     # 5. scorecard + the leak audio
     leak = picks.get("leak")
-    leak_clip = _evidence_bot_audio(leak[0], leak[1], "pii_leak", 4.5) if leak else None
+    # if the hook already played the leak, don't repeat it here
+    leak_clip = _evidence_bot_audio(leak[0], leak[1], "pii_leak", 4.5) if leak and hook_key != "leak" else None
     segs.append(Segment("scorecard", 9.0, [("Head", "First-draft bot (v1)"),
                                            ("Big", f"{f['v1_cells']}/{cells} scenarios passed"),
                                            ("Sub", f"{f['v1_leaks']} calls read out a fake account number")],

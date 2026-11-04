@@ -32,7 +32,8 @@ def _mask(v: str) -> str:
 
 
 def config_checks(s: Settings) -> list[Check]:
-    out = [Check(".env file", (ROOT / ".env").exists(), str(ROOT / ".env"),
+    out = [Check(".env file", (ROOT / ".env").exists() or bool(s.gnani_api_key),
+                 str(ROOT / ".env") if (ROOT / ".env").exists() else "no .env; using environment variables",
                  "Copy .env.example to .env in the repo root and fill it in.")]
     out.append(Check("GNANI_API_KEY", bool(s.gnani_api_key), _mask(s.gnani_api_key),
                      "Create a key at app.gnani.ai and put it in .env as GNANI_API_KEY=..."))

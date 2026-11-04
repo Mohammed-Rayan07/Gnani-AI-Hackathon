@@ -394,7 +394,6 @@ def launch(steps: str = typer.Option(",".join(["doctor", "clone", "run", "judge"
                 if left:
                     log(f"  {version}: {len(left)} calls still crashing (quota?). They are excluded from scoring; "
                         "re-run `chakravyuh launch --steps run,judge,reels,site,results,kit,video` later to finish them.")
-            log("  " + _usage_line(c))
         if "judge" in want:
             log("== judge")
             use_llm = not s.offline and s.judge_llm.configured
@@ -450,7 +449,7 @@ def launch(steps: str = typer.Option(",".join(["doctor", "clone", "run", "judge"
                 log(f"  README results table updated: {L.update_readme(f)}")
         if "kit" in want or "evon" in want:
             log("== kit")
-            for p in L.write_kit(f, cfg.kit_dir, REPO_URL, SITE_URL):
+            for p in L.write_kit(f, cfg.kit_dir, REPO_URL, SITE_URL, cloned=(s.voices_dir / "me.json").exists()):
                 log(f"  {p}")
         if "video" in want:
             log("== video")
@@ -472,11 +471,16 @@ def launch(steps: str = typer.Option(",".join(["doctor", "clone", "run", "judge"
         if leaked:
             raise typer.Exit(code=_abort(f"refusing to publish private files: {leaked}"))
         if staged:
-            subprocess.run(["git", "commit", "-m", "Publish live results, site and README numbers"], cwd=ROOT_DIR, check=True)
-            subprocess.run(["git", "push"], cwd=ROOT_DIR, check=True)
-            _out(f"Published {len(staged)} files.")
+            subprocess.run(["git", "commit", "-q", "-m", "Publish live results, site and README numbers"], cwd=ROOT_DIR, check=True)
         else:
-            _out("Nothing new to publish.")
+            _out("Nothing new to commit.")
+        # push the current branch explicitly (a bare `git push` depends on upstream config)
+        push = subprocess.run(["git", "push", "-u", "origin", "HEAD"], cwd=ROOT_DIR, capture_output=True, text=True)
+        if push.returncode == 0:
+            _out(f"Published {len(staged)} files to origin.")
+        else:
+            raise typer.Exit(code=_abort("Committed locally, but the push failed:\n" + (push.stderr or push.stdout)[-800:]
+                                         + "\nFix the git issue above, then run: git push -u origin HEAD"))
 
 
 def models_personas():

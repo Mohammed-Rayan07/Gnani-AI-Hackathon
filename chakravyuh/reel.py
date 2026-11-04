@@ -111,7 +111,7 @@ def render_reel(run_dir: Path, call_id: str, *, max_seconds: float = 15.0, aspec
         f"Style: Bot,{FONT},{fs},&H0000E5FF,&H00FFFFFF,&H00000000,&HA0000000,0,0,0,0,100,100,0,0,3,14,0,2,70,70,{int(H * 0.18)},1",
         f"Style: Stamp,{FONT},{int(fs * 1.35)},&H00FFFFFF,&H00FFFFFF,{colour},{colour},1,0,0,0,100,100,2,0,3,22,0,5,90,90,0,1",
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
-        f"Dialogue: 0,{_ts(0)},{_ts(total)},Head,,0,0,0,,{_ass_escape(call.persona_id.replace('_', ' ').title())} → {_ass_escape(call.bot_label)}",
+        f"Dialogue: 0,{_ts(0)},{_ts(total)},Head,,0,0,0,,{_ass_escape(call.persona_id.replace('_', ' ').title())} → {_ass_escape(call.bot_label.split(' (')[0])}",
         f"Dialogue: 0,{_ts(0)},{_ts(total)},Mark,,0,0,0,,SYNTHETIC CALLER · {call.channel} line · CHAKRAVYUH",
     ]
     for a, b, who, text in events:

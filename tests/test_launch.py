@@ -64,3 +64,27 @@ def test_results_table_and_readme_markers(tmp_path):
     assert L.update_readme(f, readme)
     text = readme.read_text()
     assert "old" not in text and "| Calls leaking a fake identifier | 4 | 0 |" in text and text.endswith("y\n")
+
+
+def _facts(**kw):
+    f = {"calls_total": 48, "judge_model": "openai/gpt-oss-120b", "evon_agreement": {}, "human_kappa": {},
+         "top_still_human": "answered in the wrong language", "offline": False, "personas": ["uncle_traffic", "tamil_aunty"],
+         "v1_cells": 0, "v2_cells": 5, "cells_total": 6, "v1_leaks": 4, "v2_leaks": 0, "v1_fails": {"pii_leak": 4}}
+    f.update(kw)
+    return f
+
+
+def test_kit_only_claims_what_ran(tmp_path):
+    from chakravyuh import launch as L
+    L.write_kit(_facts(), tmp_path, "repo", "site", cloned=False)
+    post = (tmp_path / "LINKEDIN_POST.md").read_text()
+    assert "cloned" not in post                       # no clone -> no clone claim
+    assert "Kannada" not in post and "bank officer" not in post   # only personas that ran
+    assert "a Hinglish uncle shouting over traffic and a Tamil-English aunty" in post
+    assert "gpt-oss-120b judges" in post and "openai/" not in post
+    assert "And an LLM judge" in post and "@Gnani.ai" not in post
+    L.write_kit(_facts(evon_agreement={"r": {"kappa": 0.71, "calls": 40}}), tmp_path, "repo", "site", cloned=True)
+    post = (tmp_path / "LINKEDIN_POST.md").read_text()
+    assert "The uncle is me, cloned with Gnani's Timbre." in post
+    assert "And a second judge, Gnani's own Evon v3.3, agreed with it κ = 0.71" in post
+    assert "6/ Still failing: v2 answered in the wrong language. A second judge" in (tmp_path / "X_THREAD.md").read_text()
