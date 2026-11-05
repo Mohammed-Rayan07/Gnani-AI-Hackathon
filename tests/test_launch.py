@@ -88,3 +88,16 @@ def test_kit_only_claims_what_ran(tmp_path):
     assert "The uncle is me, cloned with Gnani's Timbre." in post
     assert "And a second judge, Gnani's own Evon v3.3, agreed with it κ = 0.71" in post
     assert "6/ Still failing: v2 answered in the wrong language. A second judge" in (tmp_path / "X_THREAD.md").read_text()
+
+
+def test_kit_has_teaser_and_submission(tmp_path):
+    from chakravyuh import launch as L
+    L.write_kit(_facts(), tmp_path, "https://repo", "https://site", cloned=False)
+    teaser = (tmp_path / "TEASER.md").read_text()
+    sub = (tmp_path / "SUBMISSION.md").read_text()
+    assert "#GreatIndianAIInternshipChallenge #GnaniAI" in teaser and "cloned" not in teaser
+    assert "| Results | 48 calls. First-draft bot: 0/6 scenarios, 4 calls leaked" in sub
+    assert "voice cloning" not in sub and "Evon" not in sub          # only models that were actually used
+    L.write_kit(_facts(evon_agreement={"r": {"kappa": 0.7, "calls": 40}}), tmp_path, "r", "s", cloned=True)
+    sub = (tmp_path / "SUBMISSION.md").read_text()
+    assert "Gnani voice cloning (vachana-vc-v1)" in sub and "Evon v3.3 (second judge)" in sub

@@ -24,18 +24,24 @@ Model benchmarks (WER on single clips) don't tell you whether **a deployed bot**
 
 ## How a simulated turn works
 
-```
-persona LLM ──text──▶ Timbre / cloned voice ──16 kHz──▶ upstream line ─┐
-   ▲                                                  (noise @ SNR, band-pass,
-   │                                                   8 kHz, μ-law/opus, burst loss)
-   │                                                                    ▼
- what the caller heard ◀── Prisma ◀── downstream line ◀── bot reply ◀── BOT UNDER TEST
-                                                         │
-                                         VAD timing on the bot's own audio
-                                         (latency, dead air)
-
-logged turns ──▶ deterministic checks (PII canaries, language, latency, repetition, completion)
-             ──▶ LLM rubric with machine-verified quotes ──▶ scorecard.html / diff.html / crash reels
+```mermaid
+flowchart TB
+    subgraph CALL["One simulated call (repeats every turn)"]
+        direction LR
+        P["🧠 Caller LLM<br/>persona + goal<br/>sees only what it heard"] -->|text| T["🗣️ Gnani Timbre<br/>voice per language<br/>uncle = my cloned voice"]
+        T -->|16 kHz| U["📶 Phone line<br/>noise · 8 kHz · codec<br/>burst packet loss"]
+        U -->|8 kHz| B["🏦 Bot under test<br/>Prisma → LLM → Timbre"]
+        B -->|reply| D["📶 Same bad line"]
+        D --> S["👂 Gnani Prisma<br/>indic-auto · codemix"]
+        S -->|what the caller heard| P
+    end
+    subgraph JUDGE["After the call"]
+        direction LR
+        L[("🗂️ Call log<br/>audio + text per turn")] --> J1["✅ Deterministic checks<br/>PII canaries · language<br/>dead air · loops"]
+        J1 --> J2["⚖️ LLM rubric<br/>machine-verified quotes"]
+        J2 --> O["📊 Scorecard · v1→v2 diff<br/>crash reels · site"]
+    end
+    CALL --> JUDGE
 ```
 
 | Line profile | What it simulates |

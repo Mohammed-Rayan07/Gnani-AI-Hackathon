@@ -419,9 +419,49 @@ If they ask "can you test my bot?":
 3. Carousel, "7 ways Indian voice bots fail on real phone lines": use the top criteria from docs/RESULTS.md ({', '.join(list(f['v1_fails'])[:7])}).
 4. "Your callers so far": a montage of comment-loop reels (credit commenters by name only with their OK).
 """
+    teaser = f"""{banner}Every voice bot demo I've seen works on a quiet laptop mic.
+
+Real Indian callers are on a 2G line with a bus behind them, switching from Hindi to English mid-sentence. Some of them are scammers.
+
+So I built something that phones voice bots the way those people do: synthetic callers on a simulated noisy 8 kHz line, built on Gnani's Prisma and Timbre.{" One of the callers is my own cloned voice." if clone_line else ""}
+
+Tomorrow I'll show what broke.
+
+What's the worst thing a customer-care bot has done to you?
+
+#GreatIndianAIInternshipChallenge #GnaniAI
+{TAG_PLACEHOLDER}
+
+(Post this the evening before the launch. Don't nominate it: nominate the launch post.)
+"""
+    models_used = "Prisma v3.0 (speech-to-text), Timbre v2.5 (text-to-speech)" + \
+        (", Gnani voice cloning (vachana-vc-v1)" if clone_line else "") + \
+        (", Evon v3.3 (second judge)" if ek else "")
+    submission = f"""{banner}# Submission form answers (copy field by field)
+
+Submit by 8 Nov; the deadline is 10 Nov, 11:59 PM IST. Check that both nominated posts are live, with both hashtags and the Gnani tag.
+
+| Field | Answer |
+|---|---|
+| Project title | CHAKRAVYUH: crash-test dummies for Indian voice bots |
+| One-line pitch | Synthetic Indian callers phone a voice bot over a simulated noisy 8 kHz line; every failure comes back with audio proof. |
+| Problem | Voice bots are tested on clean audio, but Indian callers are on noisy, code-mixed phone lines, and some are social engineers. Bots that pass demos fail real calls and leak data. |
+| Target users | Voice-bot teams at banks, telecoms and BPOs; developers building voice agents (it runs as a CI regression gate). |
+| What it does | {callers}, calling a reference bank bot; Prisma hears the bot through the same bad line; deterministic checks plus an LLM judge with machine-verified quotes score every call; scorecard, v1→v2 diff, crash reels. |
+| Results | {n} calls. First-draft bot: {f['v1_cells']}/{f['cells_total']} scenarios, {f['v1_leaks']} calls leaked a fake account number. Hardened bot: {f['v2_cells']}/{f['cells_total']}, {f['v2_leaks']} leaks. Still failing: {still}. |
+| Gnani models used | {models_used} |
+| Other tools | Python, numpy/scipy (phone-line simulator), ffmpeg, FastAPI, {judge} as the primary judge |
+| Team | Solo |
+| Repo | {repo_url} |
+| Live demo / site | {site_url} |
+| LinkedIn post (nominate) | <paste the launch post URL> |
+| X post (nominate) | <paste the URL of tweet 1 of the thread> |
+| Data | All callers, names and identifiers are synthetic; the only cloned voice is my own, with recorded consent. |
+"""
     paths = []
     for name, body in (("LINKEDIN_POST.md", post), ("FIRST_COMMENT.md", first_comment), ("X_THREAD.md", x_thread),
-                       ("COMMENT_REPLIES.md", replies), ("FOLLOW_UPS.md", followups)):
+                       ("COMMENT_REPLIES.md", replies), ("FOLLOW_UPS.md", followups),
+                       ("TEASER.md", teaser), ("SUBMISSION.md", submission)):
         p = kit_dir / name
         p.write_text(body, encoding="utf-8")
         paths.append(p)

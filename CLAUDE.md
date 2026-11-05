@@ -157,7 +157,7 @@ runs/caller-*                       comment-loop runs (included in the site)
 - **run:** 5 personas × 3 scenarios × 3 seeds × {v1, v2}, `--max-turns 6` = 90 calls, into `runs/launch-v1|v2`. Finished calls are skipped; crashed ones are retried twice with 60 s waits.
 - **reels:** `pick_reels` chooses leak (v1 pii_leak, prefers social_engineer×kyc), language (v1), rural_2g, still_failing (v2 bot failure) and fixed (v2 pass). Each is rendered in 4:5, 9:16 and 16:9 and copied to `launch/reels/`.
 - **results:** writes `docs/RESULTS.md` and replaces the README block between `<!-- RESULTS:START -->` and `<!-- RESULTS:END -->`. In offline mode it writes `launch/RESULTS.offline.md` and never touches the README.
-- **kit:** writes `launch/LINKEDIN_POST.md`, `FIRST_COMMENT.md`, `X_THREAD.md`, `COMMENT_REPLIES.md` and `FOLLOW_UPS.md`, with numbers from `facts()`. Offline output is bannered "DO NOT POST".
+- **kit:** writes `launch/LINKEDIN_POST.md`, `FIRST_COMMENT.md`, `X_THREAD.md`, `COMMENT_REPLIES.md`, `FOLLOW_UPS.md`, `TEASER.md` (evening-before post) and `SUBMISSION.md` (form answers), with numbers from `facts()`. Offline output is bannered "DO NOT POST".
 - **video:** writes `launch/demo_4x5.mp4` and `demo_16x9.mp4` (about 60 s): hook reel 7 s, then title, caller cards with real line audio, how-it-works, the v1 scorecard plus the leak audio, the v1→v2 diff with what still fails, and the call to action. The Timbre VO uses `clone:me` when `voices/me.json` exists, otherwise Pranav.
 - **evon:** runs only if `EVON_LLM_*` is set: `judge --judge evon` plus agreement for both runs.
 - **--publish:** `git add site docs/RESULTS.md README.md`, refuses `.env`/runs/voices, then commits and pushes. Refused offline.
