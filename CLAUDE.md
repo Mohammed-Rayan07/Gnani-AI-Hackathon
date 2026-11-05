@@ -34,7 +34,7 @@ Read this first, every session. It is the full technical context handed over fro
 
 ## 4. Commands
 ```
-uv run pytest -q                                   # 63 tests, ~3 min (test_launch: offline launch; test_live_paths: real clients vs mock APIs)
+uv run pytest -q                                   # 64 tests, ~2-3 min (test_launch: offline launch; test_live_paths: real clients vs mock APIs)
 uv run chakravyuh doctor                           # .env, keys (masked), network, Timbre, Prisma 16k + 8k line, 3 LLMs
 uv run chakravyuh smoke                            # one line through every channel profile, raw + phonetic CER
 uv run chakravyuh launch --clone me.wav --i-consent --yes --publish    # EVERYTHING, resumable
@@ -82,7 +82,7 @@ chakravyuh/
 refbot/             Dhan Seva fictional bank bot: brain.py (LLM or offline rule brain), pipeline.py (Prisma+LLM+Timbre),
                     app.py (FastAPI: /{v}/call/start|turn|end, /{v}/text/start|turn), prompt_v1.txt, prompt_v2.txt,
                     policy.yaml, customers_fake.json
-personas/ scenarios/  YAML data; tests/  61 tests; docs/  RESULTS (generated), LIMITATIONS, CONSENT, RUNBOOK, LIVE_STATUS, EVON_LOCAL
+personas/ scenarios/  YAML data; tests/  64 tests (incl. mock_apis.py + test_live_paths.py); docs/  RESULTS (generated), LIMITATIONS, CONSENT, RUNBOOK, LIVE_STATUS, EVON_LOCAL
 .github/workflows/  ci.yml (lint + pytest), pages.yml (deploys site/ on push to site/** or manual dispatch)
 examples/voice-regression-gate.yml   CI gate for other bots (audio-http contract)
 ```
@@ -188,6 +188,14 @@ runs/caller-*                       comment-loop runs (included in the site)
   - the demo hook is the PII-leak clip;
   - doctor accepts env-var configuration.
 
+- `eedfa58`:
+  - the README turn diagram is now a two-row Mermaid flowchart (validated with mermaid 10.9.1, renders natively on GitHub);
+  - the launch kit adds `TEASER.md` (an evening-before post) and `SUBMISSION.md` (every Gnani form field pre-filled from the judged runs; voice cloning/Evon are listed only if used).
+- **Pre-publication checks (Nov 5):**
+  - a full git-history scan found no API keys, `.env`, voice files, `runs/` or `launch/` ever committed, so the repo is safe to make public;
+  - the user's Gmail appears as the author on 7 laptop commits (the user knows; optional `git config user.email <id>+<user>@users.noreply.github.com` for future commits);
+  - CI is green on every push.
+
 ## 12. Known issues / limits (docs/LIMITATIONS.md)
 - The line is simulated: no real AMR/GSM, echo or carrier AGC. Turn-based, so barge-in is N/A.
 - The persona LLM ignores the mixed-script rule about half the time. Timbre copes, but caller-side codemix CER is noisy.
@@ -206,9 +214,10 @@ runs/caller-*                       comment-loop runs (included in the site)
 2. **Pause OneDrive**, then `uv run chakravyuh launch --clone me.wav --i-consent --yes --publish`. Watch for doctor failures, clone errors (first live test of the clone format) and Groq daily caps (re-run to resume). If the Groq daily cap is too tight for 90 calls, shrink with `--seeds 2` (60 calls) or drop `kannada_auto` from `--personas`; the post copy adapts automatically.
 3. Review the outputs (demo video, reels with Indic glyphs, `site/index.html`, `docs/RESULTS.md`, `launch/LINKEDIN_POST.md`). Fix anything wrong **before** posting.
 4. Make the repo public, merge to `main`, then Settings → Pages → GitHub Actions and run the pages workflow.
-5. Post the LinkedIn launch (native 4:5 video, both hashtags, Gnani tag, first comment with links) around 8:30 AM IST, then the X thread at 9:00 with the 16:9 video. Run the comment loop with `chakravyuh caller`.
-6. Submit the Gnani form by **Nov 8**, nominating one post per platform. Final deadline Nov 10, 11:59 PM IST.
-7. Optional:
+5. The evening before launch: post `launch/TEASER.md` (not nominated).
+6. Post the LinkedIn launch (`launch/LINKEDIN_POST.md`, native 4:5 video, both hashtags, first comment with links) around 8:30 AM IST. **Replace `[tag Gnani AI's company page here]` with a real @-mention picked from LinkedIn's dropdown.** Then post the X thread at 9:00 with the 16:9 video, and run the comment loop with `chakravyuh caller`.
+7. Submit the Gnani form by **Nov 8** using `launch/SUBMISSION.md`, nominating one post per platform. Final deadline Nov 10, 11:59 PM IST.
+8. Optional:
    - Evon second judge (`docs/EVON_LOCAL.md`);
    - `label` + `kappa` on about 35 calls;
    - then `launch --steps results,kit,video --publish`;
