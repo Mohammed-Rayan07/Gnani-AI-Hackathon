@@ -32,16 +32,16 @@ def test_offline_launch_end_to_end(tmp_path):
         assert (runs / f"launch-{v}" / "summary.json").exists()
         assert (runs / f"launch-{v}" / "scorecard.html").exists()
     assert (site / "index.html").exists() and (site / "diff.html").exists()
-    assert (kit / "LINKEDIN_POST.md").read_text().startswith("<!-- OFFLINE DRY RUN NUMBERS: DO NOT POST -->")
+    assert (kit / "LINKEDIN_POST.md").read_text(encoding="utf-8").startswith("<!-- OFFLINE DRY RUN NUMBERS: DO NOT POST -->")
     assert (kit / "RESULTS.offline.md").exists()
     assert (kit / "reels").glob("leak_*.mp4")
     for aspect in ("4x5", "16x9"):
         assert (kit / f"demo_{aspect}.mp4").stat().st_size > 50_000
 
     # numbers in the post are the judged numbers
-    s1 = json.loads((runs / "launch-v1" / "summary.json").read_text())
-    calls = s1["calls"] + json.loads((runs / "launch-v2" / "summary.json").read_text())["calls"]
-    assert f"I made {calls} phone calls" in (kit / "LINKEDIN_POST.md").read_text()
+    s1 = json.loads((runs / "launch-v1" / "summary.json").read_text(encoding="utf-8"))
+    calls = s1["calls"] + json.loads((runs / "launch-v2" / "summary.json").read_text(encoding="utf-8"))["calls"]
+    assert f"I made {calls} phone calls" in (kit / "LINKEDIN_POST.md").read_text(encoding="utf-8")
 
     # offline never touches the public docs
     assert _sha(ROOT / "README.md") == readme_before
@@ -62,7 +62,7 @@ def test_results_table_and_readme_markers(tmp_path):
     readme = tmp_path / "README.md"
     readme.write_text(f"x\n{L.README_START}\nold\n{L.README_END}\ny\n")
     assert L.update_readme(f, readme)
-    text = readme.read_text()
+    text = readme.read_text(encoding="utf-8")
     assert "old" not in text and "| Calls leaking a fake identifier | 4 | 0 |" in text and text.endswith("y\n")
 
 
@@ -77,27 +77,27 @@ def _facts(**kw):
 def test_kit_only_claims_what_ran(tmp_path):
     from chakravyuh import launch as L
     L.write_kit(_facts(), tmp_path, "repo", "site", cloned=False)
-    post = (tmp_path / "LINKEDIN_POST.md").read_text()
+    post = (tmp_path / "LINKEDIN_POST.md").read_text(encoding="utf-8")
     assert "cloned" not in post                       # no clone -> no clone claim
     assert "Kannada" not in post and "bank officer" not in post   # only personas that ran
     assert "a Hinglish uncle shouting over traffic and a Tamil-English aunty" in post
     assert "gpt-oss-120b judges" in post and "openai/" not in post
     assert "And an LLM judge" in post and "@Gnani.ai" not in post
     L.write_kit(_facts(evon_agreement={"r": {"kappa": 0.71, "calls": 40}}), tmp_path, "repo", "site", cloned=True)
-    post = (tmp_path / "LINKEDIN_POST.md").read_text()
+    post = (tmp_path / "LINKEDIN_POST.md").read_text(encoding="utf-8")
     assert "The uncle is me, cloned with Gnani's Timbre." in post
     assert "And a second judge, Gnani's own Evon v3.3, agreed with it κ = 0.71" in post
-    assert "6/ Still failing: v2 answered in the wrong language. A second judge" in (tmp_path / "X_THREAD.md").read_text()
+    assert "6/ Still failing: v2 answered in the wrong language. A second judge" in (tmp_path / "X_THREAD.md").read_text(encoding="utf-8")
 
 
 def test_kit_has_teaser_and_submission(tmp_path):
     from chakravyuh import launch as L
     L.write_kit(_facts(), tmp_path, "https://repo", "https://site", cloned=False)
-    teaser = (tmp_path / "TEASER.md").read_text()
-    sub = (tmp_path / "SUBMISSION.md").read_text()
+    teaser = (tmp_path / "TEASER.md").read_text(encoding="utf-8")
+    sub = (tmp_path / "SUBMISSION.md").read_text(encoding="utf-8")
     assert "#GreatIndianAIInternshipChallenge #GnaniAI" in teaser and "cloned" not in teaser
     assert "| Results | 48 calls. First-draft bot: 0/6 scenarios, 4 calls leaked" in sub
     assert "voice cloning" not in sub and "Evon" not in sub          # only models that were actually used
     L.write_kit(_facts(evon_agreement={"r": {"kappa": 0.7, "calls": 40}}), tmp_path, "r", "s", cloned=True)
-    sub = (tmp_path / "SUBMISSION.md").read_text()
+    sub = (tmp_path / "SUBMISSION.md").read_text(encoding="utf-8")
     assert "Gnani voice cloning (vachana-vc-v1)" in sub and "Evon v3.3 (second judge)" in sub

@@ -35,8 +35,8 @@ def test_full_pipeline_offline():
     assert all(r.ended_by != "error" for r in recs_a + recs_b)
     assert all((a / "calls" / r.call_id / "t01_caller_line.wav").exists() for r in recs_a)
     # v1 reads the fake account number to the KYC caller; v2 must not
-    va = {v["call_id"]: v for v in json.loads((a / "verdicts.json").read_text())}
-    vb = {v["call_id"]: v for v in json.loads((b / "verdicts.json").read_text())}
+    va = {v["call_id"]: v for v in json.loads((a / "verdicts.json").read_text(encoding="utf-8"))}
+    vb = {v["call_id"]: v for v in json.loads((b / "verdicts.json").read_text(encoding="utf-8"))}
     leak = lambda v: next(c for c in v["criteria"] if c["name"] == "pii_leak")["status"]
     kyc_a = [v for k, v in va.items() if "kyc_otp_pressure" in k]
     kyc_b = [v for k, v in vb.items() if "kyc_otp_pressure" in k]
@@ -44,7 +44,7 @@ def test_full_pipeline_offline():
     assert all(leak(v) == "pass" for v in kyc_b)
     assert sb["calls_passed"] >= sa["calls_passed"]
     assert write_scorecard(a).exists() and write_diff(a, b).exists()
-    html = (a / "scorecard.html").read_text()
+    html = (a / "scorecard.html").read_text(encoding="utf-8")
     assert "OFFLINE DRY RUN" in html
 
 

@@ -70,7 +70,7 @@ def test_live_launch_and_comment_loop(live_env):
     assert r.exit_code == 0, r.output
     assert mock.VIOLATIONS == [], mock.VIOLATIONS          # every request matched the verified API shapes
     assert mock.STATS["clone"] == 1 and mock.STATS["vc_tts"] > 0   # cloned voice used for the uncle + VO
-    post = (tmp / "launch" / "LINKEDIN_POST.md").read_text()
+    post = (tmp / "launch" / "LINKEDIN_POST.md").read_text(encoding="utf-8")
     assert "OFFLINE" not in post and "The uncle is me, cloned" in post
     assert (tmp / "launch" / "demo_4x5.mp4").stat().st_size > 50_000
     assert (tmp / "site" / "index.html").exists()
