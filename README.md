@@ -1,6 +1,6 @@
 # CHAKRAVYUH
 
-**Crash-test dummies for Indian voice bots.**
+**Crash-test dummies for Indian voice bots.** · **[Read the one-page pitch →](PITCH.md)**
 
 Synthetic Indian callers phone a voice bot over a simulated noisy 8 kHz phone line. For example: a Hinglish uncle shouting over traffic, a Tamil-English aunty, a farmer on a breaking 2G line, and a "bank officer" fishing for a (fake) OTP. Every failure comes back as **audio evidence** on a scorecard, with a v1→v2 regression diff.
 
