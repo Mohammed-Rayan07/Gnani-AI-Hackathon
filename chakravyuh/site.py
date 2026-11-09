@@ -36,6 +36,21 @@ def _copy_run(run_dir: Path, dest: Path) -> dict:
     return {"dir": dest.name, "manifest": manifest, "summary": summary, "reels": reels}
 
 
+def _built_on(runs: list[Path]) -> str:
+    """Name only the Gnani models these runs actually used (never claim Evon or cloning that did not run)."""
+    cloned = evon = False
+    for r in map(Path, runs):
+        evon |= (r / "summary.evon.json").exists()
+        for call in r.glob("calls/*/call.json"):
+            if "cloned" in call.read_text(encoding="utf-8"):
+                cloned = True
+                break
+    parts = ["Gnani Prisma", "Timbre" + (" (plus voice cloning)" if cloned else "")]
+    if evon:
+        parts.append("Evon")
+    return ", ".join(parts[:-1]) + " and " + parts[-1]
+
+
 def build_site(runs: list[Path], out: Path) -> Path:
     out = Path(out)
     if out.exists():
@@ -51,7 +66,7 @@ def build_site(runs: list[Path], out: Path) -> Path:
         diff_rel = d.name
     env = Environment(loader=FileSystemLoader(TEMPLATES), autoescape=select_autoescape(["html", "j2"]))
     env.filters["pct"] = lambda x: "-" if x is None else f"{x * 100:.0f}%"
-    html = env.get_template("site_index.html.j2").render(cards=cards, diff=diff_rel,
+    html = env.get_template("site_index.html.j2").render(cards=cards, diff=diff_rel, built_on=_built_on(runs),
                                                          offline=any("OFFLINE" in c["manifest"].get("mode", "") for c in cards))
     (out / "index.html").write_text(html, encoding="utf-8")
     (out / ".nojekyll").write_text("")

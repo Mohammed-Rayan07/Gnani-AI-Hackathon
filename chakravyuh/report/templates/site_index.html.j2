@@ -2,7 +2,7 @@
 {% block title %}CHAKRAVYUH: hear it fail{% endblock %}
 {% block body %}
 <h1>CHAKRAVYUH: hear Indian voice bots fail</h1>
-<p class="muted">Synthetic Indian callers phone a voice bot over a simulated noisy 8 kHz line. Every failure comes back with the audio. Built on Gnani Prisma, Timbre (plus voice cloning) and Evon.</p>
+<p class="muted">Synthetic Indian callers phone a voice bot over a simulated noisy 8 kHz line. Every failure comes back with the audio. Built on {{ built_on }}.</p>
 {% if diff %}<div class="card"><h3>v1 → v2 regression diff</h3><p>What hardening the bot fixed, and what it still gets wrong.</p><a href="{{ diff }}"><b>Open the diff →</b></a></div>{% endif %}
 <h2>Runs</h2>
 {% for c in cards %}

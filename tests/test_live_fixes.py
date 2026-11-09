@@ -50,3 +50,14 @@ def test_refbot_voice_matches_reply_language():
     for lang, v in voices.REFBOT_BY_LANGUAGE.items():
         assert voices.language_of(v) == lang
     assert voices.refbot_voice("xx-XX") == "Kaveri"
+
+
+def test_site_names_only_models_that_ran(tmp_path):
+    from chakravyuh.site import _built_on
+    run = tmp_path / "r"
+    (run / "calls" / "c1").mkdir(parents=True)
+    (run / "calls" / "c1" / "call.json").write_text('{"models": {"caller_voice": "timbre-v2.5/Jalaj"}}', encoding="utf-8")
+    assert _built_on([run]) == "Gnani Prisma and Timbre"
+    (run / "calls" / "c1" / "call.json").write_text('{"models": {"caller_voice": "vachana-vc-v1 (cloned: me)"}}', encoding="utf-8")
+    (run / "summary.evon.json").write_text("{}", encoding="utf-8")
+    assert _built_on([run]) == "Gnani Prisma, Timbre (plus voice cloning) and Evon"

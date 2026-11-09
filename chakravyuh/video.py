@@ -145,7 +145,7 @@ async def build_demo(f: dict, picks: dict, reels: dict, tts, voices_dir: Path, o
                         vo=(f"Version two fixes most of it. It still {still}." if still else "Version two passes this matrix.")))
     # 7. end card
     segs.append(Segment("end", 5.5, [("Big", "Describe a caller in the comments."), ("Sub", "I'll make them call the bot."),
-                                     ("Small", "All callers synthetic · Gnani Prisma · Timbre · Evon" + (f" · {repo_url}" if repo_url else ""))],
+                                     ("Small", "All callers synthetic · Gnani Prisma · Timbre" + (" · Evon" if f.get("evon_agreement") else "") + (f" · {repo_url}" if repo_url else ""))],
                         vo="Describe a caller in the comments, and I'll make them call the bot."))
 
     # audio per segment
