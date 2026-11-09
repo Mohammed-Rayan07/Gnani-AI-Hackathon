@@ -113,7 +113,7 @@ This builds the persona, calls bot v2, judges the call and renders a reel. It al
 - **LLM verdicts must quote the transcript verbatim, and every quote is checked by machine.** A verdict whose quotes can't be found is marked *unverified*, never counted as a pass.
 - **The judge must be a different model from the bot.**
 - **A scenario passes if at least 2 of its 3 seeds pass.** Call pass rates carry Wilson 95% intervals, and the diff only says "improved" when those intervals separate.
-- **Judge agreement is published.** `chakravyuh label` collects blind hand labels and `chakravyuh kappa` reports Cohen's κ against them.
+- **Judge agreement can be measured.** `chakravyuh label` collects blind hand labels and `chakravyuh kappa` reports Cohen's κ against them.
 - **Barge-in is shown as N/A.** The harness runs a turn-based REST loop.
 - **All identifiers are visibly fake** (`FAKE-7342-0913-4417`, `TESTP0000F`, `00000-41779`), and `chakravyuh lint` fails on anything that looks real.
 
@@ -155,7 +155,7 @@ _Filled automatically by `chakravyuh launch` from the judged runs; nothing here 
 See [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 - The phone line is simulated, not a carrier network.
 - Language matching is approximate.
-- An LLM judge is not ground truth, which is why κ is published.
+- An LLM judge is not ground truth. The κ tooling exists to check it, but no hand labels have been collected yet.
 
 ## Cost
 
