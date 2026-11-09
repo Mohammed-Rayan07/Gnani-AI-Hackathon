@@ -7,7 +7,7 @@ Synthetic Indian callers phone a voice bot over a simulated noisy 8 kHz phone li
 Built on Gnani AI models:
 - **Prisma** (speech-to-text) hears the bot through the bad line.
 - **Timbre** (text-to-speech) voices the callers, and **Timbre voice cloning** makes one of them my own voice.
-- **Evon v3.3** re-judges every logged call as an independent second judge, and the agreement (κ) is published.
+- **Evon v3.3** is wired in as an optional second judge (`chakravyuh judge --judge evon`, then `agree` for κ). It has not been run yet: it needs a local GPU or GGUF setup ([docs/EVON_LOCAL.md](docs/EVON_LOCAL.md)).
 
 > Built for the Gnani AI Great Indian AI Internship Challenge 2026. All callers, names and identifiers are synthetic.
 
@@ -137,7 +137,7 @@ _Filled automatically by `chakravyuh launch` from the judged runs; nothing here 
 | Caller speech | Gnani **Timbre v2.5** (a matched voice per language) + **`vachana-vc-v1`** voice clone for the uncle (my own voice, see [CONSENT](docs/CONSENT.md)) |
 | Hearing the bot through the line | Gnani **Prisma v3.0** (`indic-auto`, `codemix`), at 8 kHz |
 | Reference bot's own ears and voice | Prisma + Timbre (a per-language voice for each reply) |
-| Second judge | Gnani **Evon v3.3** (30B-A3B, open weights), run locally ([docs/EVON_LOCAL.md](docs/EVON_LOCAL.md)) |
+| Second judge (optional, not yet run) | Gnani **Evon v3.3** (30B-A3B, open weights), run locally ([docs/EVON_LOCAL.md](docs/EVON_LOCAL.md)) |
 | Caller personas, bot brain, primary judge | any OpenAI-compatible LLM. The live runs used Groq: `gpt-oss-20b` (callers), `qwen3.8-27b` (bot), `gpt-oss-120b` (judge). The judge is always a different model from the bot. Each run's manifest records exactly what ran. |
 
 ## Engineering decisions (and why)
@@ -145,7 +145,7 @@ _Filled automatically by `chakravyuh launch` from the judged runs; nothing here 
 - **Turn-based REST instead of streaming.** Prisma's WebSocket must be fed in real time and has per-org session caps. REST lets calls run in parallel, be cached by content hash and replay deterministically, so a 90-call regression is repeatable. Barge-in is reported as N/A, never faked.
 - **Harness noise is measured, not assumed.** The reference bot exposes its real reply text, so every turn has ground truth. Our transcript of the bot through the line is scored with a **script-neutral phonetic error rate**: every script is mapped to a Latin consonant skeleton and numbers to digits, so "बैलेंस" = "balance" and "seven three" = "73". A failure that disappears on the real text is a *harness error*, never blamed on the bot.
 - **PII leaks are caught however they're spoken.** Canary digits are matched after normalising English, Hindi, Tamil and Kannada number words, "double/triple", and native digits.
-- **The LLM judge has to prove it.** Every verdict quotes the transcript, and the quote is substring-checked. Deterministic checks run first and can't be overruled. Agreement is reported against a second judge (Evon) and against blind hand labels (κ).
+- **The LLM judge has to prove it.** Every verdict quotes the transcript, and the quote is substring-checked. Deterministic checks run first and can't be overruled. The code can measure agreement (κ) against a second judge (Evon) and against blind hand labels; neither has been run yet.
 - **Statistics before claims.** Results use 3 seeds per cell and Wilson 95% intervals. A scenario passes when at least 2 of its 3 seeds pass, and "improved" is claimed only when the intervals separate.
 - **Built for flaky free tiers.** Requests retry on 429 using `Retry-After`. Provider quirks (no JSON mode, thinking models using up their token budget) are handled automatically. The launch is resumable, and crashed calls are retried rather than scored.
 - **Synthetic by construction.** Fake canaries, a PII lint in CI, consent-gated voice cloning, and adversarial callers that only ever run against your own bot.
