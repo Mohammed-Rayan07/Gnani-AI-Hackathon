@@ -3,8 +3,8 @@
 ## Cloned voice
 The only cloned voice in this project is the author's own.
 
-- Sample: ~20 s of my own speech, recorded on ____ (date) specifically for this project.
-- Statement recorded at the start of the sample: "I, ____, consent to cloning my voice with Gnani Timbre for the CHAKRAVYUH project."
+- Sample: ~22 s of my own speech, recorded on 9 November 2026 specifically for this project.
+- Statement recorded at the start of the sample: "I, Mohammed Rayan, consent to cloning my voice with Gnani Timbre for the CHAKRAVYUH project."
 - The embedding (`voices/me.json`) is gitignored and never published.
 - `chakravyuh clone-voice` refuses to run without `--i-consent`.
 
