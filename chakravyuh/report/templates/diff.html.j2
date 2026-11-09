@@ -1,40 +1,85 @@
 {% extends "_base.html.j2" %}
-{% block title %}CHAKRAVYUH diff{% endblock %}
+{% block title %}v1 → v2 · CHAKRAVYUH regression diff{% endblock %}
+{% block extra_css %}
+.vs{display:grid;grid-template-columns:1fr auto 1fr;gap:0;margin-top:32px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-lg);overflow:hidden}
+.side{padding:24px 26px}
+.side.after{background:linear-gradient(180deg,var(--surface-2),var(--surface))}
+.side .who{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px}
+.side .who .tag{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.side dl{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:20px 0 0}
+.side dt{font-size:12px;color:var(--muted)}
+.side dd{margin:4px 0 0;font-size:32px;font-weight:620;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.side dd small{font-size:15px;color:var(--muted);font-weight:500}
+.side dd.bad{color:var(--fail)}.side dd.good{color:var(--pass)}
+.mid{display:grid;place-items:center;padding:0 6px;border-left:1px solid var(--line);border-right:1px solid var(--line);background:var(--surface-2)}
+.mid span{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:var(--accent-ink)}
+.mid svg{width:18px;height:18px}
+.verdict{display:flex;gap:14px;align-items:center;margin-top:14px;padding:14px 18px;border-radius:12px;border:1px solid var(--line);background:var(--surface)}
+.verdict p{margin:0;font-size:13.5px;color:var(--muted)}
+.cmp td .tile{min-width:150px}
+@media (max-width:860px){.vs{grid-template-columns:1fr}.mid{padding:10px;border:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.mid svg{transform:rotate(90deg)}.side dl{grid-template-columns:repeat(3,1fr)}.side dd{font-size:26px}}
+{% endblock %}
 {% block body %}
-<h1>{{ ma.bot_label }} → {{ mb.bot_label }}</h1>
-<div class="muted">Runs <span class="mono">{{ ma.run_id }}</span> → <span class="mono">{{ mb.run_id }}</span> · judge {{ sb.judge_model }}</div>
+{% set name_a = ma.bot_label.split(' (')[0] %}{% set name_b = mb.bot_label.split(' (')[0] %}
+<div class="eyebrow"><span>Regression diff</span><span class="dot"></span><span class="mono">{{ ma.run_id }} → {{ mb.run_id }}</span></div>
+<h1>{{ name_a }} <span class="soft">→</span> {{ name_b }}</h1>
+<p class="lead">The same callers, the same scenarios, the same phone lines. What hardening the bot fixed, and what it still gets wrong.</p>
+<div class="specs"><span class="spec"><span>Judge</span><b>{{ sb.judge_model }}</b></span><span class="spec"><span>Rule</span><b>"improved" only when 95% intervals separate</b></span></div>
 
-<div class="kpis">
-  <div class="kpi"><b>{{ sa.cells_passed }}/{{ sa.cells_total }} → {{ sb.cells_passed }}/{{ sb.cells_total }}</b>scenarios passed</div>
-  <div class="kpi"><b>{{ (sa.call_pass_rate or 0)|pct }} → {{ (sb.call_pass_rate or 0)|pct }}</b>call pass rate<br>
-    <span class="muted">CI {{ ci_a[0]|pct }}–{{ ci_a[1]|pct }} → {{ ci_b[0]|pct }}–{{ ci_b[1]|pct }}</span></div>
-  <div class="kpi"><b>{{ verdict }}</b>we only say "improved" when the 95% intervals separate</div>
+<div class="vs">
+  <div class="side">
+    <div class="who"><span class="tag">Before</span>{{ name_a }}</div>
+    <dl>
+      <div><dt>Scenarios passed</dt><dd class="num">{{ sa.cells_passed }}<small>/{{ sa.cells_total }}</small></dd></div>
+      <div><dt>Call pass rate</dt><dd class="num">{{ (sa.call_pass_rate or 0)|pct }}</dd></div>
+      <div><dt>Leaked an ID</dt><dd class="num {{ 'bad' if leaks_a else 'good' }}">{{ leaks_a }}</dd></div>
+    </dl>
+  </div>
+  <div class="mid"><span>{{ ICON.arrow|safe }}</span></div>
+  <div class="side after">
+    <div class="who"><span class="tag">After</span>{{ name_b }}</div>
+    <dl>
+      <div><dt>Scenarios passed</dt><dd class="num">{{ sb.cells_passed }}<small>/{{ sb.cells_total }}</small></dd></div>
+      <div><dt>Call pass rate</dt><dd class="num">{{ (sb.call_pass_rate or 0)|pct }}</dd></div>
+      <div><dt>Leaked an ID</dt><dd class="num {{ 'bad' if leaks_b else 'good' }}">{{ leaks_b }}</dd></div>
+    </dl>
+  </div>
+</div>
+<div class="verdict">
+  <span class="badge {{ 'pass' if verdict == 'improved' else ('fail' if verdict == 'regressed' else 'warn') }}">{{ verdict.split(' (')[0] }}</span>
+  <p>Call pass rate 95% CI {{ ci_a[0]|pct }}–{{ ci_a[1]|pct }} → {{ ci_b[0]|pct }}–{{ ci_b[1]|pct }}. We only call it an improvement when the intervals stop overlapping.</p>
 </div>
 
-<h2>Scenario by scenario</h2>
-<div class="card scroll"><table>
+<div class="sec"><span class="k">01</span><h2>Scenario by scenario</h2><p>Seeds passed before and after. Chips show what the new version still fails.</p></div>
+<div class="card scroll"><table class="tbl cmp">
 <tr><th>Caller</th><th>Scenario</th><th>Before</th><th>After</th></tr>
 {% for k in keys %}{% set a = ga.get(k) %}{% set b = gb.get(k) %}
-<tr><td>{{ k[0] }}</td><td>{{ k[1] }}</td>
-<td class="cell {{ 'pass' if a and a.cell_pass else 'fail' if a else 'na' }}">{% if a %}{{ a.passed_seeds }}/{{ a.seeds }}{% else %}–{% endif %}</td>
-<td class="cell {{ 'pass' if b and b.cell_pass else 'fail' if b else 'na' }}">{% if b %}{{ b.passed_seeds }}/{{ b.seeds }}{% for kk, n in b.failing_criteria.items() %}<br><span class="chip">{{ CRIT.get(kk, kk) }} ×{{ n }}</span>{% endfor %}{% else %}–{% endif %}</td></tr>
+<tr><td><b>{{ k[0]|nice }}</b></td><td>{{ k[1]|nice }}</td>
+<td>{% if a %}<div class="tile {{ 'pass' if a.cell_pass else 'fail' }}"><div class="t-top"><span class="badge {{ 'pass' if a.cell_pass else 'fail' }}">{{ 'Pass' if a.cell_pass else 'Fail' }}</span><span class="t-seeds">{{ a.passed_seeds }}/{{ a.seeds }}</span></div></div>{% else %}<div class="tile na">–</div>{% endif %}</td>
+<td>{% if b %}<div class="tile {{ 'pass' if b.cell_pass else 'fail' }}"><div class="t-top"><span class="badge {{ 'pass' if b.cell_pass else 'fail' }}">{{ 'Pass' if b.cell_pass else 'Fail' }}</span><span class="t-seeds">{{ b.passed_seeds }}/{{ b.seeds }}</span></div>
+  {% if b.failing_criteria %}<div class="t-chips">{% for kk, n in b.failing_criteria.items() %}<span class="chip f">{{ CRIT.get(kk, kk) }}{% if n > 1 %} ×{{ n }}{% endif %}</span>{% endfor %}</div>{% endif %}</div>{% else %}<div class="tile na">–</div>{% endif %}</td></tr>
 {% endfor %}
 </table></div>
 
-<h2>Still failing after the fix ({{ still_failing|length }})</h2>
-<p class="muted">The honest part: what the hardened bot still gets wrong.</p>
-{% for r in still_failing %}
-<div class="card"><h3>{{ r.v.persona_id }} · {{ r.v.scenario_id }} · seed {{ r.v.seed }}</h3>
-{% for c in r.failed %}<div><b>{{ CRIT.get(c.name, c.name) }}</b>: {{ c.reason }}</div>{% for e in c.evidence[:1] %}<blockquote>{{ e.quote }}</blockquote>{% endfor %}{% endfor %}
-{% for t in r.evidence_turns[:1] %}{% if t.audio.bot_line %}<audio controls preload="none" src="{{ r.prefix }}{{ t.audio.bot_line }}"></audio>{% endif %}{% endfor %}
-</div>
-{% endfor %}
+{% macro mini(r) %}
+<article class="fcard">
+  <header class="fhead"><h3>{{ r.v.persona_id|nice }}<span class="arr">→</span>{{ r.v.scenario_id|nice }}</h3>
+    <div class="fmeta"><span class="chip">{{ ICON.phone|safe }}{{ r.call.channel|nice }}</span><span class="chip">seed {{ r.v.seed }}</span></div></header>
+  <div class="fbody">
+    <div class="checks">{% for c in r.failed[:3] %}<div class="check"><div class="check-top"><span class="x">{{ ICON.x|safe }}</span><b>{{ CRIT.get(c.name, c.name) }}</b>{% if c.source == 'deterministic' %}<span class="src">rule check</span>{% else %}<span class="src">{{ ICON.check|safe }}quote verified</span>{% endif %}</div>
+      <p class="reason">{{ c.reason }}</p>{% for e in c.evidence[:1] %}<figure class="quote"><figcaption>Bot said · turn {{ e.turn }}</figcaption><blockquote>{{ e.quote }}</blockquote></figure>{% endfor %}</div>{% endfor %}</div>
+    <aside class="listen"><div class="listen-h">{{ ICON.head|safe }}Listen through the line</div>
+      {% for t in r.evidence_turns[:2] %}{% if t.audio.bot_line %}<div class="track"><div class="tl">Turn {{ t.index }}<span>{{ r.call.channel }}</span></div><div class="row"><span>Bot → caller</span><audio controls preload="none" src="{{ r.prefix }}{{ t.audio.bot_line }}"></audio></div></div>{% endif %}{% endfor %}
+    </aside>
+  </div>
+</article>
+{% endmacro %}
 
-<h2>Fixed by the new version (sample)</h2>
-{% for r in fixed[:6] %}
-<div class="card"><h3>{{ r.v.persona_id }} · {{ r.v.scenario_id }} · seed {{ r.v.seed }}</h3>
-{% for c in r.failed[:2] %}<div><b>{{ CRIT.get(c.name, c.name) }}</b>: {{ c.reason }}</div>{% for e in c.evidence[:1] %}<blockquote>{{ e.quote }}</blockquote>{% endfor %}{% endfor %}
-{% for t in r.evidence_turns[:1] %}{% if t.audio.bot_line %}<audio controls preload="none" src="{{ r.prefix }}{{ t.audio.bot_line }}"></audio>{% endif %}{% endfor %}
-</div>
-{% endfor %}
+<div class="sec"><span class="k">02</span><h2>Still failing after the fix</h2><p>The honest part: {{ still_failing|length }} call{{ '' if still_failing|length == 1 else 's' }} where the hardened bot still gets it wrong.</p></div>
+{% for r in still_failing %}{{ mini(r) }}{% else %}<div class="card pad"><span class="badge pass">None</span> <span class="muted">The new version passes every call in this matrix.</span></div>{% endfor %}
+
+{% if fixed %}
+<div class="sec"><span class="k">03</span><h2>Fixed by the new version</h2><p>A sample of failures from the old version whose scenario now passes.</p></div>
+{% for r in fixed[:6] %}{{ mini(r) }}{% endfor %}
+{% endif %}
 {% endblock %}

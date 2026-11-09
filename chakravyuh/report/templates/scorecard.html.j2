@@ -1,71 +1,126 @@
 {% extends "_base.html.j2" %}
-{% block title %}CHAKRAVYUH scorecard{% endblock %}
+{% block title %}{{ m.bot_label.split(' (')[0] }} · CHAKRAVYUH scorecard{% endblock %}
 {% block body %}
-<h1>Scorecard: {{ m.bot_label }}</h1>
-<div class="muted">Run <span class="mono">{{ m.run_id }}</span> · mode <b>{{ m.mode }}</b> · adapter {{ m.adapter }}{% if 'logic-only' in m.adapter %} (bot's own voice stack untested){% endif %} · barge-in: N/A (turn-based REST mode)</div>
-<div class="muted">Callers: {{ m.models.persona }} · STT: {{ m.models.stt }} · TTS: {{ m.models.tts }} · Judge: {{ s.judge_model }}</div>
+{% set bot_name = m.bot_label.split(' (')[0] %}
+{% set ci_lo = ((s.call_pass_ci95[0] or 0) * 100)|round(1) %}{% set ci_hi = ((s.call_pass_ci95[1] or 0) * 100)|round(1) %}
+{% set rate = ((s.calls_passed / s.calls * 100) if s.calls else 0)|round(1) %}
+
+<div class="eyebrow"><span>Scorecard</span><span class="dot"></span><span class="mono">{{ m.run_id }}</span><span class="dot"></span><span>{{ 'Offline dry run' if offline else 'Live run' }}</span></div>
+<h1>{{ bot_name }}</h1>
+<p class="lead">{{ s.calls }} synthetic call{{ '' if s.calls == 1 else 's' }} over simulated Indian phone lines, each one judged turn by turn. Every failure below comes with the exact quote and the audio as it sounded through the line.</p>
+<div class="specs">
+  <span class="spec"><span>Bot brain</span><b>{{ m.models.bot or m.bot_label }}</b></span>
+  <span class="spec"><span>Callers</span><b>{{ m.models.persona }}</b></span>
+  <span class="spec"><span>Ears</span><b>Gnani {{ m.models.stt }}</b></span>
+  <span class="spec"><span>Voices</span><b>Gnani {{ m.models.tts }}</b></span>
+  <span class="spec"><span>Judge</span><b>{{ s.judge_model }}</b></span>
+  <span class="spec"><span>Mode</span><b>turn-based · barge-in N/A</b></span>
+</div>
 
 <div class="kpis">
-  <div class="kpi"><b>{{ s.cells_passed }}/{{ s.cells_total }}</b>scenarios passed<br><span class="muted">pass = at least 2 of 3 seeds</span></div>
-  <div class="kpi"><b>{{ s.calls_passed }}/{{ s.calls }}</b>calls passed<br><span class="muted">95% CI {{ s.call_pass_ci95[0]|pct }}–{{ s.call_pass_ci95[1]|pct }}</span></div>
-  <div class="kpi"><b class="{{ 'fail' if leaks else '' }}" style="background:none">{{ leaks }}</b>calls leaked a (fake) identifier</div>
-  <div class="kpi"><b>{{ s.latency_to_first_word_s.p50 if s.latency_to_first_word_s.p50 is not none else '-' }}s</b>p50 to first word<br><span class="muted">p90 {{ s.latency_to_first_word_s.p90 if s.latency_to_first_word_s.p90 is not none else '-' }}s</span></div>
-  <div class="kpi"><b>{{ s.failure_kinds.harness }}</b>harness errors<br><span class="muted">our STT misheard the bot; not counted against it</span></div>
+  <div class="kpi hero">
+    <div class="lbl">{{ ICON.grid|safe }}Scenarios passed</div>
+    <div class="val num">{{ s.cells_passed }}<small> / {{ s.cells_total }}</small></div>
+    <div class="foot">A scenario passes when ≥ 2 of 3 seeds pass</div>
+  </div>
+  <div class="kpi">
+    <div class="lbl">{{ ICON.phone|safe }}Calls passed</div>
+    <div class="val num">{{ s.calls_passed }}<small> / {{ s.calls }}</small></div>
+    <div class="ci" title="95% Wilson confidence interval"><div class="ci-band" style="left:{{ ci_lo }}%;width:{{ [ci_hi - ci_lo, 1]|max }}%"></div><div class="ci-dot" style="left:{{ rate }}%"></div></div>
+    <div class="foot">95% CI {{ s.call_pass_ci95[0]|pct }} – {{ s.call_pass_ci95[1]|pct }}</div>
+  </div>
+  <div class="kpi {{ 'danger' if leaks else 'good' }}">
+    <div class="lbl">{{ ICON.shield|safe }}Leaked an identifier</div>
+    <div class="val num">{{ leaks }}<small> call{{ '' if leaks == 1 else 's' }}</small></div>
+    <div class="foot">Fake account, mobile, PAN or OTP spoken aloud</div>
+  </div>
+  <div class="kpi">
+    <div class="lbl">{{ ICON.clock|safe }}Time to first word</div>
+    <div class="val num">{{ s.latency_to_first_word_s.p50 if s.latency_to_first_word_s.p50 is not none else '–' }}<small>s p50</small></div>
+    <div class="foot">p90 {{ s.latency_to_first_word_s.p90 if s.latency_to_first_word_s.p90 is not none else '–' }}s · fails above 3 s</div>
+  </div>
+  <div class="kpi">
+    <div class="lbl">{{ ICON.wave|safe }}Line-noise errors</div>
+    <div class="val num">{{ s.failure_kinds.harness }}</div>
+    <div class="foot">Failures caused by the phone line, not the bot</div>
+  </div>
 </div>
 
-<h2>Personas × scenarios</h2>
-<div class="card scroll"><table>
-<tr><th>Caller</th>{% for sc in scenarios %}<th>{{ sc }}</th>{% endfor %}</tr>
-{% for p in personas %}<tr><td><b>{{ p }}</b></td>
-{% for sc in scenarios %}{% set c = grid.get((p, sc)) %}
-  {% if c %}<td class="cell {{ 'pass' if c.cell_pass else 'fail' }}">{{ 'PASS' if c.cell_pass else 'FAIL' }} {{ c.passed_seeds }}/{{ c.seeds }}<br>
-  {% for k, n in c.failing_criteria.items() %}<span class="chip">{{ CRIT.get(k, k) }} ×{{ n }}</span>{% endfor %}</td>
-  {% else %}<td class="cell na">–</td>{% endif %}
-{% endfor %}</tr>{% endfor %}
+<div class="sec"><span class="k">01</span><h2>Callers × scenarios</h2><p>Each tile is one caller trying one task, across seeds. Red tiles list what went wrong.</p></div>
+<div class="card scroll"><table class="matrix">
+<tr><th></th>{% for sc in scenarios %}<th>{{ sc|nice }}</th>{% endfor %}</tr>
+{% for p in personas %}<tr><td class="who">{{ p|nice }}<small>{{ p }}</small></td>
+{% for sc in scenarios %}{% set c = grid.get((p, sc)) %}<td>
+  {% if c %}<div class="tile {{ 'pass' if c.cell_pass else 'fail' }}">
+    <div class="t-top"><span class="badge {{ 'pass' if c.cell_pass else 'fail' }}">{{ 'Pass' if c.cell_pass else 'Fail' }}</span><span class="t-seeds">{{ c.passed_seeds }}/{{ c.seeds }} seeds</span></div>
+    {% if c.failing_criteria %}<div class="t-chips">{% for k, n in c.failing_criteria.items() %}<span class="chip f">{{ CRIT.get(k, k) }}{% if n > 1 %} ×{{ n }}{% endif %}</span>{% endfor %}</div>{% endif %}
+  </div>{% else %}<div class="tile na">not run</div>{% endif %}
+</td>{% endfor %}</tr>{% endfor %}
 </table></div>
 
-<h2>Hear it fail ({{ failures|length }} failing calls)</h2>
-{% for r in failures %}
-<div class="card">
-  <h3><span class="stamp {{ 'fail' if r.v.failure_kind == 'bot' else '' }}">{{ 'FAIL' if r.v.failure_kind == 'bot' else r.v.failure_kind|upper }}</span>
-   {{ r.v.persona_id }} · {{ r.v.scenario_id }} · seed {{ r.v.seed }} · line <span class="mono">{{ r.call.channel }}</span></h3>
-  {% for c in r.failed %}
-    <div><b>{{ CRIT.get(c.name, c.name) }}</b> <span class="chip">{{ c.status }} · {{ c.source }}</span> {{ c.reason }}</div>
-    {% for e in c.evidence[:2] %}<blockquote><span class="muted">turn {{ e.turn }}:</span> {{ e.quote }}{% if e.detail %} <span class="muted">({{ e.detail }})</span>{% endif %}</blockquote>{% endfor %}
-  {% endfor %}
-  {% for t in r.evidence_turns %}
-    <div class="turn"><div class="who">turn {{ t.index }}</div><div>
-      {% if t.audio.caller_line %}caller (as the bot heard it) <audio controls preload="none" src="{{ r.prefix }}{{ t.audio.caller_line }}"></audio><br>{% endif %}
-      {% if t.audio.bot_line %}bot (through the line) <audio controls preload="none" src="{{ r.prefix }}{{ t.audio.bot_line }}"></audio>{% endif %}
-    </div></div>
-  {% endfor %}
-  <details><summary>Full transcript</summary>
+<div class="sec"><span class="k">02</span><h2>Hear it fail</h2><p>{{ failures|length }} failing call{{ '' if failures|length == 1 else 's' }}. Rule-based checks can't be overruled; the LLM judge must quote the transcript, and every quote is machine-verified.</p></div>
+{% for r in failures %}{% set kind = r.v.failure_kind %}
+<article class="fcard">
+  <header class="fhead">
+    <span class="badge {{ 'fail' if kind == 'bot' else 'warn' }}">{{ 'Bot failure' if kind == 'bot' else ('Line noise' if kind == 'harness' else 'Needs review') }}</span>
+    <h3>{{ r.v.persona_id|nice }}<span class="arr">→</span>{{ r.v.scenario_id|nice }}</h3>
+    <div class="fmeta"><span class="chip">{{ ICON.phone|safe }}{{ r.call.channel|nice }}</span><span class="chip">seed {{ r.v.seed }}</span><span class="chip">{{ r.call.turns|length - 1 }} turns</span></div>
+  </header>
+  <div class="fbody">
+    <div class="checks">{% set ns = namespace(seen=[]) %}
+    {% for c in r.failed %}
+      <div class="check">
+        <div class="check-top"><span class="x {{ 'u' if c.status == 'unverified' else '' }}">{{ (ICON.alert if c.status == 'unverified' else ICON.x)|safe }}</span><b>{{ CRIT.get(c.name, c.name) }}</b>
+          {% if c.source == 'deterministic' %}<span class="src">rule check</span>{% elif c.status == 'unverified' %}<span class="src">unverified</span>{% else %}<span class="src">{{ ICON.check|safe }}LLM judge · quote verified</span>{% endif %}</div>
+        <p class="reason">{{ c.reason }}</p>
+        {% for e in c.evidence[:1] %}{% set key = e.turn|string ~ (e.quote or '')[:60] %}
+          {% if key in ns.seen %}<div class="same">↑ same evidence as above · turn {{ e.turn }}</div>
+          {% else %}{% set ns.seen = ns.seen + [key] %}<figure class="quote"><figcaption>Bot said · turn {{ e.turn }}</figcaption><blockquote>{{ e.quote }}</blockquote>{% if e.detail %}<div class="qd">{{ e.detail }}</div>{% endif %}</figure>{% endif %}{% endfor %}
+      </div>
+    {% endfor %}
+    </div>
+    <aside class="listen">
+      <div class="listen-h">{{ ICON.head|safe }}Listen through the line</div>
+      {% for t in r.evidence_turns %}
+      <div class="track"><div class="tl">Turn {{ t.index }}<span>{{ r.call.channel }}</span></div>
+        {% if t.audio.caller_line %}<div class="row"><span>Caller → bot</span><audio controls preload="none" src="{{ r.prefix }}{{ t.audio.caller_line }}"></audio></div>{% endif %}
+        {% if t.audio.bot_line %}<div class="row"><span>Bot → caller</span><audio controls preload="none" src="{{ r.prefix }}{{ t.audio.bot_line }}"></audio></div>{% endif %}
+      </div>
+      {% else %}<p class="muted" style="font-size:13px">No audio evidence for this call.</p>{% endfor %}
+    </aside>
+  </div>
+  <details class="tx"><summary>{{ ICON.chev|safe }}Full transcript · {{ r.call.turns|length }} turns</summary>
+  <div class="chat">
   {% for t in r.call.turns %}
-    <div class="turn"><div class="who">{{ 'greeting' if t.index == 0 else 'turn ' ~ t.index }}</div><div>
-      {% if t.caller_text %}<div><b>Caller:</b> {{ t.caller_text }}</div>{% if t.bot_heard_caller is not none %}<div class="muted">bot heard: {{ t.bot_heard_caller }}</div>{% endif %}{% endif %}
-      <div><b>Bot:</b> {{ t.bot_text_true or t.bot_text_heard }}</div>
-      {% if t.bot_text_true and t.bot_text_heard != t.bot_text_true %}<div class="muted">caller heard: {{ t.bot_text_heard }}</div>{% endif %}
-      <div class="muted mono">first word {{ '%.1f'|format((t.timing.response_latency_s or 0) + (t.timing.leading_silence_s or 0)) }}s · max gap {{ t.timing.max_internal_gap_s or 0 }}s{% if t.channel_meta.upstream %} · upstream loss {{ (t.channel_meta.upstream.measured_loss * 100)|round(1) }}%{% endif %}</div>
-    </div></div>
+    {% if t.caller_text %}<div class="msg caller"><div class="who"><span>Caller · turn {{ t.index }}</span></div>{{ t.caller_text }}
+      {% if t.bot_heard_caller is not none %}<div class="heard">Bot heard: {{ t.bot_heard_caller }}</div>{% endif %}</div>{% endif %}
+    <div class="msg bot"><div class="who"><span>Bot · {{ 'greeting' if t.index == 0 else 'turn ' ~ t.index }}</span></div>{{ t.bot_text_true or t.bot_text_heard }}
+      {% if t.bot_text_true and t.bot_text_heard != t.bot_text_true %}<div class="heard">Caller heard: {{ t.bot_text_heard }}</div>{% endif %}
+      <div class="meta">first word {{ '%.1f'|format((t.timing.response_latency_s or 0) + (t.timing.leading_silence_s or 0)) }}s · max gap {{ t.timing.max_internal_gap_s or 0 }}s{% if t.channel_meta.upstream %} · line loss {{ (t.channel_meta.upstream.measured_loss * 100)|round(1) }}%{% endif %}</div></div>
   {% endfor %}
-  </details>
-</div>
+  </div></details>
+</article>
+{% else %}
+<div class="card pad"><span class="badge pass">All clear</span> <span class="muted">No failing calls in this run.</span></div>
 {% endfor %}
 
-<h2>Harness noise floor</h2>
-<div class="card scroll">
-<p class="muted">How badly Prisma mishears the bot through each simulated line. <b>Phonetic CER</b> compares consonant skeletons after mapping every script to Latin and numbers to digits, so "बैलेंस" = "balance" and "seven three" = "73"; it measures mishearing, not spelling. Raw CER is shown for reference. A failure that disappears when judged on the bot's real text is labelled a harness error, not a bot failure.</p>
-<table><tr><th>Line profile</th><th>What it simulates</th><th>Phonetic CER mean</th><th>median</th><th>raw CER</th><th>bot turns</th></tr>
-{% for name, n in s.harness_noise_cer.items() %}<tr><td class="mono">{{ name }}</td><td>{{ profiles[name].description if name in profiles else '' }}</td><td>{{ n.mean|pct }}</td><td>{{ n.median|pct }}</td><td class="muted">{{ n.raw_mean|pct }}</td><td>{{ n.turns }}</td></tr>{% endfor %}
+<div class="sec"><span class="k">03</span><h2>Phone-line noise floor</h2><p>How much Gnani Prisma mishears the bot through each simulated line. Phonetic CER maps every script to Latin and numbers to digits, so "बैलेंस" = "balance". It measures mishearing, not spelling. A failure that vanishes on the bot's real text is blamed on the line, not the bot.</p></div>
+<div class="card scroll"><table class="tbl">
+<tr><th>Line</th><th>What it simulates</th><th>Phonetic CER</th><th></th><th>Median</th><th>Raw CER</th><th>Bot turns</th></tr>
+{% for name, n in s.harness_noise_cer.items() %}<tr>
+  <td><b>{{ name|nice }}</b><div class="mono muted">{{ name }}</div></td>
+  <td class="muted" style="max-width:340px">{{ profiles[name].description if name in profiles else '' }}</td>
+  <td class="mono num"><b>{{ n.mean|pct }}</b></td>
+  <td style="width:22%"><div class="bar {{ 'f' if (n.mean or 0) > 0.25 else '' }}"><i style="width:{{ [((n.mean or 0) * 100)|round(1), 100]|min }}%"></i></div></td>
+  <td class="mono num">{{ n.median|pct }}</td><td class="mono num muted">{{ n.raw_mean|pct }}</td><td class="mono num">{{ n.turns }}</td>
+</tr>{% endfor %}
 </table></div>
 
-<h2>How to read this</h2>
-<div class="card">
-<ul>
-<li>Deterministic checks (PII canaries, language, latency, completion) run first and cannot be overruled by the LLM judge.</li>
-<li>LLM verdicts must quote the transcript verbatim; quotes are machine-checked. Unchecked verdicts show as <b>unverified</b> and are never counted as a pass.</li>
-<li>Language match is approximate: script share + a code-mix lexicon + Prisma's language id.</li>
-<li>The phone line is simulated (band-pass, 8 kHz, mu-law/opus, burst loss, clipping). It is not a real carrier network.</li>
-<li>All identifiers are fake (<span class="mono">FAKE-…</span>, <span class="mono">TESTP0000F</span>, <span class="mono">00000-…</span>).</li>
-</ul></div>
+<div class="sec"><span class="k">04</span><h2>How the judge works</h2></div>
+<div class="method">
+  <div class="mitem"><b>{{ ICON.shield|safe }}Rules first</b><p>PII canaries, language, dead air and repetition are checked in code before any LLM looks at the call. The LLM can't overrule them.</p></div>
+  <div class="mitem"><b>{{ ICON.check|safe }}Verified quotes</b><p>LLM verdicts must quote the transcript word for word. Quotes are machine-checked; anything unchecked is marked unverified, never a pass.</p></div>
+  <div class="mitem"><b>{{ ICON.wave|safe }}Line vs bot</b><p>Every call is judged on what the bot really said and on what the caller heard. Noise-only failures are labelled line errors.</p></div>
+  <div class="mitem"><b>{{ ICON.phone|safe }}Simulated line</b><p>Band-pass 300–3400 Hz, 8 kHz, μ-law or Opus, burst packet loss, clipping. A simulation, not a carrier network. All identifiers are fake.</p></div>
+</div>
 {% endblock %}

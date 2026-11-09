@@ -1,18 +1,111 @@
 {% extends "_base.html.j2" %}
-{% block title %}CHAKRAVYUH: hear it fail{% endblock %}
+{% block title %}CHAKRAVYUH · hear Indian voice bots fail{% endblock %}
+{% block extra_css %}
+.hero{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:40px;align-items:end;padding:24px 0 8px}
+.hero h1{font-size:56px;line-height:1.02;letter-spacing:-.045em;margin:16px 0 18px}
+.hero h1 em{font-style:normal;text-decoration:underline;text-decoration-color:var(--accent);text-decoration-thickness:.12em;text-underline-offset:.1em}
+.hero-card{background:var(--ink);color:var(--bg);border-radius:18px;padding:22px;box-shadow:var(--shadow-lg);position:relative;overflow:hidden}
+.hero-card::after{content:"";position:absolute;right:-34px;top:-34px;width:104px;height:104px;border-radius:50%;background:conic-gradient(var(--accent) 0 25%,transparent 0 50%,var(--accent) 0 75%,transparent 0);opacity:.95}
+.hero-card .k{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.65}
+.hero-card .big{font-size:22px;line-height:1.35;font-weight:550;letter-spacing:-.01em;margin:10px 0 14px;max-width:84%;position:relative;z-index:1}
+.hero-card .big b{font-weight:650;background:var(--accent);color:var(--accent-ink);padding:0 5px;border-radius:4px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.hero-card .row{display:flex;gap:8px;flex-wrap:wrap;position:relative;z-index:1}
+.hero-card .row span{font-family:var(--mono);font-size:11.5px;border:1px solid color-mix(in srgb,var(--bg) 25%,transparent);border-radius:99px;padding:4px 10px}
+.flow{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0;margin-top:22px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.step{padding:18px 16px 18px;border-right:1px solid var(--line);position:relative}
+.step:last-child{border-right:0}
+.step .n{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.step .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--line);margin:10px 0 12px;color:var(--ink)}
+.step .ic svg{width:17px;height:17px}
+.step.gn .ic{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.step b{display:block;font-size:14px;font-weight:600;letter-spacing:-.01em}
+.step p{margin:4px 0 0;font-size:12.5px;color:var(--muted);line-height:1.45}
+.step .g{display:inline-block;margin-top:8px;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;background:var(--accent-soft);color:var(--link);border-radius:5px;padding:2px 6px}
+.runs{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.run{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;transition:box-shadow .18s ease,transform .18s ease}
+.run:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
+.run-top{padding:20px 22px 0}
+.run h3{margin:8px 0 2px;font-size:20px;letter-spacing:-.02em}
+.run .model{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.run .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0;padding:0 22px}
+.run .stats div{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.run .stats dt{font-size:11.5px;color:var(--muted)}
+.run .stats dd{margin:2px 0 0;font-size:22px;font-weight:620;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.run .stats dd.bad{color:var(--fail)}.run .stats dd.good{color:var(--pass)}
+.reels{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+.reel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)}
+.reel video{width:100%;display:block;background:#000;aspect-ratio:4/5;object-fit:cover}
+.reel div{padding:10px 14px;font-size:13px;font-weight:550}
+.reel div span{display:block;font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:400}
+.run .go{margin-top:auto;display:flex;align-items:center;justify-content:space-between;padding:14px 22px;border-top:1px solid var(--line);font-weight:600;font-size:14px;color:var(--ink)}
+.run .go svg{width:16px;height:16px}
+.run .go:hover{background:var(--surface-2);text-decoration:none}
+.diffcta{display:flex;align-items:center;gap:20px;padding:22px 24px;background:var(--ink);color:var(--bg);border-radius:var(--r);box-shadow:var(--shadow-lg)}
+.diffcta:hover{text-decoration:none}
+.diffcta .ar{margin-left:auto;width:44px;height:44px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex:none}
+.diffcta .ar svg{width:20px;height:20px}
+.diffcta b{font-size:19px;letter-spacing:-.02em}
+.diffcta p{margin:3px 0 0;opacity:.7;font-size:14px}
+@media (max-width:980px){.hero{grid-template-columns:1fr}.hero h1{font-size:40px}.flow{grid-template-columns:repeat(2,1fr)}.step{border-bottom:1px solid var(--line)}}
+{% endblock %}
 {% block body %}
-<h1>CHAKRAVYUH: hear Indian voice bots fail</h1>
-<p class="muted">Synthetic Indian callers phone a voice bot over a simulated noisy 8 kHz line. Every failure comes back with the audio. Built on {{ built_on }}.</p>
-{% if diff %}<div class="card"><h3>v1 → v2 regression diff</h3><p>What hardening the bot fixed, and what it still gets wrong.</p><a href="{{ diff }}"><b>Open the diff →</b></a></div>{% endif %}
-<h2>Runs</h2>
-{% for c in cards %}
-<div class="card">
-  <h3>{{ c.manifest.bot_label }}{% if c.manifest.comment %} · caller from a comment{% endif %}</h3>
-  {% if c.manifest.comment %}<p class="muted">“{{ c.manifest.comment }}”</p>{% endif %}
-  <p><b>{{ c.summary.cells_passed }}/{{ c.summary.cells_total }}</b> scenarios passed · <b>{{ c.summary.calls_passed }}/{{ c.summary.calls }}</b> calls (95% CI {{ c.summary.call_pass_ci95[0]|pct }}–{{ c.summary.call_pass_ci95[1]|pct }}) · judge {{ c.summary.judge_model }}</p>
-  {% for r in c.reels[:3] %}<video controls preload="none" style="max-width:100%;width:320px;border-radius:8px;margin:4px" src="{{ c.dir }}/{{ r }}"></video>{% endfor %}
-  <p><a href="{{ c.dir }}/index.html"><b>Scorecard and failure audio →</b></a></p>
+<section class="hero">
+  <div>
+    <div class="eyebrow"><span>Crash-test lab</span><span class="dot"></span><span>Built on <b>{{ built_on }}</b></span></div>
+    <h1>Hear Indian voice bots <em>fail</em>.</h1>
+    <p class="lead">Synthetic Indian callers phone a voice bot over a simulated noisy 8 kHz phone line. A judge scores every call, and every failure comes back with the exact quote and the audio.</p>
+  </div>
+  <div class="hero-card">
+    <div class="k">Why</div>
+    <div class="big">Voice bots get tested in a quiet room. <b>Their users call from the road</b>, mid-sentence between Hindi and English, on a 2G line.</div>
+    <div class="row"><span>Hinglish</span><span>Tamil</span><span>Kannada</span><span>8 kHz · μ-law · Opus</span><span>packet loss</span></div>
+  </div>
+</section>
+
+<div class="flow">
+  <div class="step"><span class="n">01</span><div class="ic">{{ ICON.user|safe }}</div><b>Caller writes a line</b><p>An LLM plays a persona that only hears what came through the line.</p></div>
+  <div class="step gn"><span class="n">02</span><div class="ic">{{ ICON.mic|safe }}</div><b>Timbre speaks it</b><p>Gnani's TTS gives each caller a voice.</p><span class="g">Gnani</span></div>
+  <div class="step"><span class="n">03</span><div class="ic">{{ ICON.wave|safe }}</div><b>The phone line</b><p>Traffic noise, 300–3400 Hz, 8 kHz codec, dropped packets.</p></div>
+  <div class="step"><span class="n">04</span><div class="ic">{{ ICON.bot|safe }}</div><b>The bot answers</b><p>Any voice bot over HTTP; here, a fictional bank.</p></div>
+  <div class="step gn"><span class="n">05</span><div class="ic">{{ ICON.head|safe }}</div><b>Prisma hears it</b><p>Gnani's STT transcribes the bot through the same bad line.</p><span class="g">Gnani</span></div>
+  <div class="step"><span class="n">06</span><div class="ic">{{ ICON.scale|safe }}</div><b>The judge scores</b><p>Rule checks plus an LLM judge whose quotes are machine-verified.</p></div>
+</div>
+
+{% if diff %}
+<div class="sec"><span class="k">01</span><h2>Did the fix work?</h2></div>
+<a class="diffcta" href="{{ diff }}"><div><b>v1 → v2 regression diff</b><p>What hardening the bot fixed, and what it still gets wrong.</p></div><span class="ar">{{ ICON.arrow|safe }}</span></a>
+{% endif %}
+
+<div class="sec"><span class="k">{{ '02' if diff else '01' }}</span><h2>Runs</h2><p>Open a scorecard to see every failing call, its verified evidence and the audio.</p></div>
+<div class="runs">
+{% for c in cards %}{% set s = c.summary %}
+<div class="run">
+  <div class="run-top">
+    <span class="chip">{{ 'From a comment' if c.manifest.comment else 'Version ' ~ c.manifest.bot_label.split(' (')[0].split(' ')[-1] }}</span>
+    <h3>{{ c.manifest.bot_label.split(' (')[0] }}</h3>
+    <div class="model">{{ c.manifest.bot_label.split(' (')[1].rstrip(')') if ' (' in c.manifest.bot_label else '' }}</div>
+    {% if c.manifest.comment %}<p class="muted" style="margin:10px 0 0">“{{ c.manifest.comment }}”</p>{% endif %}
+  </div>
+  <dl class="stats">
+    <div><dt>Scenarios</dt><dd>{{ s.cells_passed }}<span class="muted" style="font-size:14px">/{{ s.cells_total }}</span></dd></div>
+    <div><dt>Calls passed</dt><dd>{{ s.calls_passed }}<span class="muted" style="font-size:14px">/{{ s.calls }}</span></dd></div>
+    <div><dt>Judge</dt><dd style="font-size:12px;font-family:var(--mono);font-weight:500;padding-top:8px">{{ s.judge_model.split('/')[-1] }}</dd></div>
+  </dl>
+  <a class="go" href="{{ c.dir }}/index.html">Scorecard and failure audio <span>{{ ICON.arrow|safe }}</span></a>
 </div>
 {% endfor %}
-<div class="card"><h3>Method</h3><p class="muted">Code, line simulator, judge rules and limitations are on GitHub (README). All names, accounts, cards, mobiles, PANs and OTPs are fictional.</p></div>
+</div>
+
+{% set reel_cards = [] %}{% for c in cards %}{% for r in c.reels if '4x5' in r %}{% set _ = reel_cards.append((c, r)) %}{% endfor %}{% endfor %}
+{% if reel_cards %}
+<div class="sec"><span class="k">{{ '03' if diff else '02' }}</span><h2>Crash reels</h2><p>Real calls, captioned, with the audio as it sounded on the line.</p></div>
+<div class="reels">{% for c, r in reel_cards %}<div class="reel"><video controls preload="metadata" src="{{ c.dir }}/{{ r }}"></video>
+  <div>{{ r.split('/')[-1].split('__')[0]|nice }} → {{ r.split('__')[1]|nice }}<span>{{ c.manifest.bot_label.split(' (')[0] }}</span></div></div>{% endfor %}</div>
+{% endif %}
+<div class="sec"><span class="k">{{ '04' if diff else '03' }}</span><h2>Method</h2></div>
+<div class="method">
+  <div class="mitem"><b>{{ ICON.shield|safe }}Synthetic only</b><p>Every name, account, card, mobile, PAN and OTP is fictional and visibly fake. A lint in CI rejects anything that looks real.</p></div>
+  <div class="mitem"><b>{{ ICON.check|safe }}Honest scoring</b><p>Wilson 95% intervals on every pass rate. "Improved" only when the intervals separate.</p></div>
+  <div class="mitem"><b>{{ ICON.grid|safe }}Open source</b><p>The line simulator, judge rules, personas and limitations are all in the <a href="{{ repo_url }}">GitHub repo</a>.</p></div>
+</div>
 {% endblock %}
